@@ -7,13 +7,17 @@ import {formatSignalRef} from '../../format.js';
 import {UnitModel} from '../../unit.js';
 import {wrapCondition} from './conditional.js';
 
-export function text(model: UnitModel, channel: 'text' | 'href' | 'url' | 'description' = 'text') {
+export function text(
+  model: UnitModel,
+  channel: 'text' | 'href' | 'url' | 'description' = 'text',
+  expr: 'datum' | 'datum.datum' = 'datum'
+) {
   const channelDef = model.encoding[channel];
   return wrapCondition({
     model,
     channelDef,
     vgChannel: channel,
-    mainRefFn: (cDef) => textRef(cDef, model.config),
+    mainRefFn: (cDef) => textRef(cDef, model.config, expr),
     invalidValueRef: undefined, // text encoding doesn't have continuous scales and thus can't have invalid values
   });
 }
