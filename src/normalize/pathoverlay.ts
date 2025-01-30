@@ -1,7 +1,8 @@
 import type {SignalRef} from 'vega';
 import {isObject} from 'vega-util';
+import {getAncestorLevel, LabelDef} from '../channeldef.js';
 import {Config} from '../config.js';
-import {Encoding, normalizeEncoding} from '../encoding.js';
+import {Encoding, normalizeEncoding, pathGroupingFields} from '../encoding.js';
 import {ExprRef} from '../expr.js';
 import {AreaConfig, isMarkDef, LineConfig, Mark, MarkConfig, MarkDef} from '../mark.js';
 import {GenericUnitSpec, NormalizedUnitSpec} from '../spec/index.js';
@@ -37,7 +38,11 @@ function getPointOverlay(
   markConfig: LineConfig<ExprRef | SignalRef> = {},
   encoding: Encoding<string>,
 ): MarkConfig<ExprRef | SignalRef> {
-  if (markDef.point === 'transparent') {
+  if (
+    markDef.point === 'transparent' ||
+    // if the main mark is a single line/trail/area chart, create an invisible point overlay for label.
+    (!markDef.point && encoding.label && pathGroupingFields(markDef.type, encoding).length <= 0)
+  ) {
     return {opacity: 0};
   } else if (markDef.point) {
     // truthy : true or object
@@ -77,6 +82,11 @@ function getLineOverlay(
   }
 }
 
+function incrementAvoidLevel(labelDef: LabelDef<string>): LabelDef<string> {
+  const ancestorLevel = getAncestorLevel(labelDef.avoid);
+  return {...labelDef, avoid: {ancestor: ancestorLevel + 1}};
+}
+
 export class PathOverlayNormalizer implements NonFacetUnitNormalizer<UnitSpecWithPathOverlay> {
   public name = 'path-overlay';
 
@@ -106,12 +116,17 @@ export class PathOverlayNormalizer implements NonFacetUnitNormalizer<UnitSpecWit
 
     // Need to call normalizeEncoding because we need the inferred types to correctly determine stack
     const encoding = normalizeEncoding(e, config);
+    if (encoding.label) {
+      encoding.label = incrementAvoidLevel(encoding.label);
+    }
 
     const markDef: MarkDef = isMarkDef(mark) ? mark : {type: mark};
 
     const pointOverlay = getPointOverlay(markDef, config[markDef.type], encoding);
 
     const lineOverlay = markDef.type === 'area' && getLineOverlay(markDef, config[markDef.type]);
+
+    const isMultiSeriesPath = pathGroupingFields(markDef.type, spec.encoding).length > 0;
 
     const layer: NormalizedUnitSpec[] = [
       {
@@ -125,7 +140,8 @@ export class PathOverlayNormalizer implements NonFacetUnitNormalizer<UnitSpecWit
           ...markDef,
         }),
         // drop shape from encoding as this might be used to trigger point overlay
-        encoding: omit(encoding, ['shape']),
+        // If the main mark is multi-series line/trail or stacked area, label the main mark.
+        encoding: omit(encoding, ['shape', ...(isMultiSeriesPath ? [] : ['label' as const])]),
       },
     ];
 
@@ -160,7 +176,9 @@ export class PathOverlayNormalizer implements NonFacetUnitNormalizer<UnitSpecWit
           ...pick(markDef, ['clip', 'interpolate', 'tension', 'tooltip']),
           ...lineOverlay,
         },
-        encoding: overlayEncoding,
+        // Drop label. Only add label to the area mark for stacked area chart.
+        // Or, only add label to the point overlay for single area chart.
+        encoding: omit(overlayEncoding, ['label']),
       });
     }
     if (pointOverlay) {
@@ -173,7 +191,8 @@ export class PathOverlayNormalizer implements NonFacetUnitNormalizer<UnitSpecWit
           ...pick(markDef, ['clip', 'tooltip']),
           ...pointOverlay,
         },
-        encoding: overlayEncoding,
+        // If the main mark is a single line/trail/area chart, label the point overlay instead of the main mark.
+        encoding: omit(overlayEncoding, isMultiSeriesPath ? ['label'] : []),
       });
     }
 
