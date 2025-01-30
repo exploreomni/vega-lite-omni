@@ -2,6 +2,7 @@ import {
   COLOR,
   DETAIL,
   FILLOPACITY,
+  LABEL,
   OPACITY,
   SIZE,
   STROKEOPACITY,
@@ -21,7 +22,7 @@ import {
   pathGroupingFields,
 } from '../src/encoding.js';
 import * as log from '../src/log/index.js';
-import {CIRCLE, POINT, SQUARE, TICK} from '../src/mark.js';
+import {AREA, BAR, CIRCLE, LINE, POINT, RECT, SQUARE, TICK, TRAIL} from '../src/mark.js';
 import {internalField} from '../src/util.js';
 
 describe('encoding', () => {
@@ -475,6 +476,23 @@ describe('encoding', () => {
       expect(markChannelCompatible(encoding, Y2, POINT)).toBe(false);
       expect(markChannelCompatible(encoding, Y2, SQUARE)).toBe(false);
       expect(markChannelCompatible(encoding, Y2, TICK)).toBe(false);
+    });
+
+    it('should not support label for circle, point, square, area, bar, line, trail, and rect mark', () => {
+      const encoding: Encoding<string> = {
+        label: {
+          field: 'a',
+          type: 'quantitative'
+        }
+      };
+      expect(markChannelCompatible(encoding, LABEL, CIRCLE)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, POINT)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, SQUARE)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, AREA)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, BAR)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, LINE)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, TRAIL)).toBe(true);
+      expect(markChannelCompatible(encoding, LABEL, RECT)).toBe(true);
     });
   });
 
