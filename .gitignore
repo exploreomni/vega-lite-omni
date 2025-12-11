@@ -3,6 +3,7 @@ _site/
 !site/examples/index.md
 .claude/
 .DS_Store
+.idea/
 .jekyll-metadata
 build/*
 coverage

@@ -30,6 +30,7 @@ import {isFacetSpec} from '../spec/index.js';
 import {
   extractCompositionLayout,
   GenericCompositionLayoutWithColumns,
+  LayoutSizeField,
   LayoutSizeMixins,
   SpecType,
   ViewBackground,
@@ -643,6 +644,10 @@ export abstract class Model {
       this.component.axes.x?.some((a) => a.hasOrientSignalRef()) ||
       this.component.axes.y?.some((a) => a.hasOrientSignalRef())
     );
+  }
+
+  public hasExplicitSize(dimension: LayoutSizeField) {
+    return Boolean(this.size[dimension]);
   }
 }
 
