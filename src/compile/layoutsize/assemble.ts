@@ -4,9 +4,12 @@ import {hasDiscreteDomain} from '../../scale.js';
 import {getFirstDefined} from '../../util.js';
 import {isSignalRef, isVgRangeStep, VgRangeStep} from '../../vega.schema.js';
 import {signalOrStringValue} from '../common.js';
+import {FacetModel} from '../facet.js';
 import {isFacetModel, Model} from '../model.js';
 import {ScaleComponent} from '../scale/component.js';
-import {LayoutSizeType} from './component.js';
+import {getFacetModel} from '../selection/index.js';
+import {isFacetMapping} from '../../spec/facet.js';
+import {getSizeTypeFromLayoutSizeType, LayoutSizeType} from './component.js';
 
 export function assembleLayoutSignals(model: Model): NewSignal[] {
   return [
@@ -20,14 +23,22 @@ export function assembleLayoutSignals(model: Model): NewSignal[] {
 export function sizeSignals(model: Model, sizeType: LayoutSizeType): (NewSignal | InitSignal)[] {
   const channel = sizeType === 'width' ? 'x' : 'y';
   const size = model.component.layoutSize.get(sizeType);
-  if (!size || size === 'merged') {
+  const facetParent = getFacetModel(model);
+  if (size == null || (size === 'merged' && !facetParent)) {
     return [];
   }
 
   // Read size signal name from name map, just in case it is the top-level size signal that got renamed.
   const name = model.getSizeSignalRef(sizeType).signal;
 
-  if (size === 'step') {
+  if (facetParent?.hasExplicitSize(getSizeTypeFromLayoutSizeType(sizeType))) {
+    return [
+      {
+        name,
+        update: autosizedFacetExpr(facetParent, sizeType),
+      },
+    ];
+  } else if (size === 'step') {
     const scaleComponent = model.getScaleComponent(channel);
 
     if (scaleComponent) {
@@ -64,7 +75,7 @@ export function sizeSignals(model: Model, sizeType: LayoutSizeType): (NewSignal 
     const defaultValue = getViewConfigContinuousSize(model.config.view, isWidth ? 'width' : 'height');
     const safeExpr = `isFinite(${expr}) ? ${expr} : ${defaultValue}`;
     return [{name, init: safeExpr, on: [{update: safeExpr, events: 'window:resize'}]}];
-  } else {
+  } else if (size !== 'merged') {
     return [
       {
         name,
@@ -72,6 +83,7 @@ export function sizeSignals(model: Model, sizeType: LayoutSizeType): (NewSignal 
       },
     ];
   }
+  return [];
 }
 
 function stepSignal(scaleName: string, range: VgRangeStep): NewSignal {
@@ -101,4 +113,27 @@ export function sizeExpr(scaleName: string, scaleComponent: ScaleComponent, card
   return `bandspace(${cardinality}, ${signalOrStringValue(paddingInner)}, ${signalOrStringValue(
     paddingOuter,
   )}) * ${scaleName}_step`;
+}
+
+function autosizedFacetExpr(model: FacetModel, sizeType: LayoutSizeType) {
+  const channel = sizeType === 'width' ? 'column' : 'row';
+  if (!model.facet[channel] && isFacetMapping(model.facet)) {
+    return sizeType;
+  }
+  if (!isFacetMapping(model.facet)) {
+    const cardinality = `length(data("facet_domain"))`;
+    const columns = model.layout.columns;
+    const domain =
+      channel === 'row'
+        ? columns
+          ? `ceil(${cardinality} / ${model.layout.columns})`
+          : 1
+        : columns
+          ? `min(${cardinality}, ${model.layout.columns})`
+          : cardinality;
+    return `${sizeType} / ${domain}`;
+  }
+  const name = model.name ? `${model.name}_` : '';
+  const domain = `${name}${channel}_domain`;
+  return `${sizeType} / length(data('${domain}'))`;
 }

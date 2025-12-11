@@ -247,11 +247,7 @@ export class FacetNode extends DataFlowNode {
       }
     }
 
-    const {row, column} = hasSharedAxis;
-
-    if (row || column) {
-      data.unshift(this.assembleRowColumnHeaderData('facet', null, childIndependentFieldsWithStep));
-    }
+    data.unshift(this.assembleRowColumnHeaderData('facet', null, childIndependentFieldsWithStep));
 
     return data;
   }

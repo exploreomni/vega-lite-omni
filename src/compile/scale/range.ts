@@ -65,6 +65,7 @@ import {UnitModel} from '../unit.js';
 import {ScaleComponentIndex} from './component.js';
 import {durationExpr} from '../../timeunit.js';
 import {isFacetModel} from '../model.js';
+import {getFacetModel} from '../selection/index.js';
 
 export const RANGE_PROPERTIES: (keyof Scale)[] = ['range', 'scheme'];
 
@@ -263,13 +264,16 @@ function defaultRange(channel: ScaleChannel, model: UnitModel): VgRange {
 
   const {domain, domainMid} = model.specifiedScales[channel];
 
+  const facetParent = getFacetModel(model);
+
   switch (channel) {
     case X:
     case Y: {
       // If there is no explicit width/height for discrete x/y scales
       if (util.contains(['point', 'band'], scaleType)) {
+        const sizeChannel = channel === X ? 'width' : 'height';
         const positionSize = getDiscretePositionSize(channel, size, config.view);
-        if (isStep(positionSize)) {
+        if (isStep(positionSize) && !facetParent?.hasExplicitSize(sizeChannel)) {
           const step = getPositionStep(positionSize, model, channel);
           return {step};
         }
@@ -412,8 +416,10 @@ function getOffsetRange(channel: string, model: UnitModel, offsetScaleType: Scal
 
   if (positionScaleType === 'band') {
     const size = getDiscretePositionSize(positionChannel, model.size, model.config.view);
+    const sizeChannel = positionChannel === X ? 'width' : 'height';
+    const facetParent = getFacetModel(model);
 
-    if (isStep(size)) {
+    if (isStep(size) && !facetParent?.hasExplicitSize(sizeChannel)) {
       // step is for offset
       const step = getOffsetStep(size, offsetScaleType);
       if (step) {

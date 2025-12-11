@@ -10,6 +10,7 @@ import {hasDiscreteDomain} from '../scale.js';
 import {DEFAULT_SORT_OP, EncodingSortField, isSortField, SortOrder} from '../sort.js';
 import {NormalizedFacetSpec} from '../spec/index.js';
 import {EncodingFacetMapping, FacetFieldDef, FacetMapping, isFacetMapping} from '../spec/facet.js';
+import {isStep} from '../spec/base.js';
 import {hasProperty, keys, vals} from '../util.js';
 import {isVgRangeStep, VgData, VgLayout, VgMarkGroup} from '../vega.schema.js';
 import {buildModel} from './buildmodel.js';
@@ -20,6 +21,7 @@ import {assembleLabelTitle} from './header/assemble.js';
 import {getHeaderChannel, getHeaderProperty} from './header/common.js';
 import {HEADER_CHANNELS, HEADER_TYPES} from './header/component.js';
 import {parseFacetHeaders} from './header/parse.js';
+import {assembleLayoutSignals} from './layoutsize/assemble.js';
 import {parseChildrenLayoutSize} from './layoutsize/parse.js';
 import {Model, ModelWithField} from './model.js';
 import {assembleDomain, getFieldFromDomain} from './scale/domain.js';
@@ -47,6 +49,11 @@ export class FacetModel extends ModelWithField {
 
     this.child = buildModel(spec.spec, this, this.getName('child'), undefined, config);
     this.children = [this.child];
+
+    this.size = {
+      ...(spec.width ? {width: spec.width} : {}),
+      ...(spec.height ? {height: spec.height} : {}),
+    };
 
     this.facet = this.initFacet(spec.facet);
   }
@@ -107,6 +114,14 @@ export class FacetModel extends ModelWithField {
 
   public parseLayoutSize() {
     parseChildrenLayoutSize(this);
+
+    const {size, component} = this;
+    for (const dimension of ['width', 'height'] as const) {
+      const specifiedSize = size[dimension];
+      if (specifiedSize) {
+        component.layoutSize.set(dimension, isStep(specifiedSize) ? 'step' : specifiedSize, true);
+      }
+    }
   }
 
   public parseSelections() {
@@ -208,8 +223,16 @@ export class FacetModel extends ModelWithField {
   }
 
   public assembleLayoutSignals(): NewSignal[] {
-    // FIXME(https://github.com/vega/vega-lite/issues/1193): this can be incorrect if we have independent scales.
-    return this.child.assembleLayoutSignals();
+    const layoutSignals = assembleLayoutSignals(this);
+
+    for (const signal of this.child.assembleLayoutSignals()) {
+      const currentSignals = layoutSignals.map((s) => s.name);
+      if (!currentSignals.includes(signal.name)) {
+        layoutSignals.push(signal);
+      }
+    }
+
+    return layoutSignals;
   }
 
   private columnDistinctSignal() {
