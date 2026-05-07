@@ -2,12 +2,6 @@ import { Legend as VgLegend, LegendEncode } from 'vega';
 import { Config } from '../../config.js';
 import { Model } from '../model.js';
 import { LegendComponent } from './component.js';
-/**
- * Assemble legends for a model. We group legends by the underlying field used by the encoding.
- *
- * @param model - The model to assemble legends for
- * @returns The assembled legends
- */
 export declare function assembleLegends(model: Model): VgLegend[];
 export declare function assembleLegend(legendCmpt: LegendComponent, config: Config): {
     size?: string;
