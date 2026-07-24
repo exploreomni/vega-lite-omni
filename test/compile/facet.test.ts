@@ -209,6 +209,62 @@ describe('FacetModel', () => {
 
       expect(columnHeader.sort).toEqual({field: 'datum["a"]', order: 'ascending'});
     });
+
+    it('should not hoist axes into headers when the child layer resolves the scale independently', () => {
+      // The child layer's y scales are assembled inside the cell group, so hoisting
+      // their axes into a row header/footer would reference an out-of-scope scale.
+      const model = parseFacetModelWithScale({
+        facet: {
+          column: {field: 'f', type: 'nominal'},
+        },
+        spec: {
+          layer: [
+            {mark: 'bar', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'b', type: 'quantitative'}}},
+            {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'c', type: 'quantitative'}}},
+          ],
+          resolve: {scale: {y: 'independent'}},
+        },
+      });
+      model.parseAxesAndHeaders();
+
+      expect(model.component.resolve.axis.y).toBe('independent');
+
+      const headerMarks = model.assembleHeaderMarks();
+      const rowGuides = headerMarks.filter((d) => d.name === 'row_header' || d.name === 'row_footer');
+      expect(rowGuides.flatMap((d) => (d as any).axes ?? [])).toEqual([]);
+
+      // The shared x axis is still hoisted to the column footer.
+      const columnFooter = headerMarks.filter((d) => d.name === 'column_footer')[0];
+      expect((columnFooter as any).axes.map((a: any) => a.scale)).toEqual(['x']);
+    });
+
+    it('should not hoist axes when a nested descendant resolves the scale independently', () => {
+      // The independent resolve can sit below the facet's direct child.
+      const model = parseFacetModelWithScale({
+        facet: {
+          column: {field: 'f', type: 'nominal'},
+        },
+        spec: {
+          layer: [
+            {mark: 'bar', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'b', type: 'quantitative'}}},
+            {
+              layer: [
+                {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'c', type: 'quantitative'}}},
+                {mark: 'point', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'd', type: 'quantitative'}}},
+              ],
+              resolve: {scale: {y: 'independent'}},
+            },
+          ],
+        },
+      });
+      model.parseAxesAndHeaders();
+
+      expect(model.component.resolve.axis.y).toBe('independent');
+
+      const headerMarks = model.assembleHeaderMarks();
+      const rowGuides = headerMarks.filter((d) => d.name === 'row_header' || d.name === 'row_footer');
+      expect(rowGuides.flatMap((d) => (d as any).axes ?? [])).toEqual([]);
+    });
   });
 
   describe('assembleGroup', () => {
