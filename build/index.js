@@ -1,9 +1,9 @@
-import { isObject, hasOwnProperty, splitAccessPath, stringValue, isNumber, isString, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
+import { isObject, hasOwnProperty, isNumber, isString, splitAccessPath, stringValue, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
 import { stringValue as stringValue$1, hasOwnProperty as hasOwnProperty$1, isObject as isObject$1, isString as isString$1, array as array$1 } from 'vega';
 import { parseSelector } from 'vega-event-selector';
 import { parseExpression as parseExpression$1 } from 'vega-expression';
 
-var version$1 = "6.4.3";
+var version$1 = "6.2.0";
 var pkg = {
 	version: version$1};
 
@@ -236,12 +236,6 @@ function isBoolean(b) {
     return b === true || b === false;
 }
 /**
- * Returns true if the value is a primitive type.
- */
-function isPrimitive(v) {
-    return isString(v) || isNumber(v) || isBoolean(v);
-}
-/**
  * Convert a string into a valid variable name
  */
 function varName(s) {
@@ -318,9 +312,6 @@ function flatAccessWithDatum(path, datum = 'datum') {
 function accessWithDatumToUnescapedPath(unescapedPath) {
     const singleQuoteEscapedPath = unescapedPath.replaceAll("'", "\\'");
     return `datum['${singleQuoteEscapedPath}']`;
-}
-function unescapeSingleQuoteAndPathDot(escapedPath) {
-    return escapedPath.replaceAll("\\'", "'").replaceAll('\\.', '.');
 }
 function escapePathAccess(string) {
     return string.replace(/(\[|\]|\.|'|")/g, '\\$1');
@@ -1732,10 +1723,6 @@ const MORE_THAN_ONE_SORT = 'Domains that should be unioned has conflicting sort 
 const FACETED_INDEPENDENT_DIFFERENT_SOURCES = 'Detected faceted independent scales that union domain of multiple fields from different data sources. We will use the first field. The result view size may be incorrect.';
 const FACETED_INDEPENDENT_SAME_FIELDS_DIFFERENT_SOURCES = 'Detected faceted independent scales that union domain of the same fields from different source. We will assume that this is the same field from a different fork of the same data source. However, if this is not the case, the result view size may be incorrect.';
 const FACETED_INDEPENDENT_SAME_SOURCE = 'Detected faceted independent scales that union domain of multiple fields from the same data source. We will use the first field. The result view size may be incorrect.';
-// LEGEND
-function legendValuesUnioned(channelA, channelB) {
-    return `Unioning discrete legend values from ${channelA} and ${channelB}.`;
-}
 // STACK
 function cannotStackRangedMark(channel) {
     return `Cannot stack "${channel}" if there is already "${channel}2".`;
@@ -3757,7 +3744,7 @@ function getFieldOrDatumDef(channelDef) {
  * Convert type to full, lowercase type, or augment the fieldDef with a default type if missing.
  */
 function initChannelDef(channelDef, channel, config, opt = {}) {
-    if (isPrimitive(channelDef)) {
+    if (isString(channelDef) || isNumber(channelDef) || isBoolean$1(channelDef)) {
         const primitiveType = isString(channelDef) ? 'string' : isNumber(channelDef) ? 'number' : 'boolean';
         warn(primitiveChannelDef(channel, primitiveType, channelDef));
         return { value: channelDef };
@@ -4725,25 +4712,8 @@ function pathGroupingFields(mark, encoding) {
             case URL:
             case X2:
             case Y2:
-                return details;
             case XOFFSET:
-            case YOFFSET: {
-                if (mark === 'line' || mark === 'area' || mark === 'trail') {
-                    const offsetDef = encoding[channel];
-                    if (isFieldDef(offsetDef)) {
-                        const mainChannel = channel === XOFFSET ? X : Y;
-                        const mainDef = encoding[mainChannel];
-                        if (isFieldDef(mainDef) && !mainDef.aggregate && !offsetDef.aggregate) {
-                            const mainField = vgField(mainDef, {});
-                            const offsetField = vgField(offsetDef, {});
-                            if (mainField && offsetField && mainField !== offsetField) {
-                                details.push(mainField);
-                            }
-                        }
-                    }
-                }
-                return details;
-            }
+            case YOFFSET:
             case THETA:
             case THETA2:
             case RADIUS:
@@ -6690,12 +6660,11 @@ function initMarkdef(originalMarkDef, encoding, config) {
     }
     // set opacity and filled if not specified in mark config
     const specifiedOpacity = getMarkPropOrConfig('opacity', markDef, config);
-    const specifiedFillOpacity = getMarkPropOrConfig('fillOpacity', markDef, config);
-    if (specifiedOpacity === undefined && specifiedFillOpacity === undefined) {
+    const specifiedfillOpacity = getMarkPropOrConfig('fillOpacity', markDef, config);
+    if (specifiedOpacity === undefined && specifiedfillOpacity === undefined) {
         markDef.opacity = opacity(markDef.type, encoding);
     }
-    // Set cursor, which should be pointer if href channel is present unless otherwise specified.
-    // We will also set the cursor in parse via getMarkGroup since we need access to the selections.
+    // set cursor, which should be pointer if href channel is present unless otherwise specified
     const specifiedCursor = getMarkPropOrConfig('cursor', markDef, config);
     if (specifiedCursor === undefined) {
         markDef.cursor = cursor(markDef, encoding, config);
@@ -6708,10 +6677,12 @@ function cursor(markDef, encoding, config) {
     }
     return markDef.cursor;
 }
-const DEFAULT_REDUCED_OPACITY = 0.7;
 function opacity(mark, encoding) {
-    if (contains([POINT, TICK, CIRCLE, SQUARE], mark) && !isAggregate$1(encoding)) {
-        return DEFAULT_REDUCED_OPACITY;
+    if (contains([POINT, TICK, CIRCLE, SQUARE], mark)) {
+        // point-based marks
+        if (!isAggregate$1(encoding)) {
+            return 0.7;
+        }
     }
     return undefined;
 }
@@ -6728,6 +6699,7 @@ function orient(mark, encoding, specifiedOrient) {
         case POINT:
         case CIRCLE:
         case SQUARE:
+        case TEXT:
         case RECT:
         case IMAGE:
             // orient is meaningless for these marks.
@@ -6735,7 +6707,6 @@ function orient(mark, encoding, specifiedOrient) {
     }
     const { x, y, x2, y2 } = encoding;
     switch (mark) {
-        case TEXT:
         case BAR:
             if (isFieldDef(x) && (isBinned(x.bin) || (isFieldDef(y) && y.aggregate && !x.aggregate))) {
                 return 'vertical';
@@ -6937,10 +6908,9 @@ class PathOverlayNormalizer {
                 name,
                 ...(params ? { params } : {}),
                 mark: dropLineAndPoint({
-                    ...(markDef.type === 'area' &&
-                        getMarkPropOrConfig('opacity', markDef, config) == undefined &&
-                        getMarkPropOrConfig('fillOpacity', markDef, config) == undefined
-                        ? { opacity: DEFAULT_REDUCED_OPACITY }
+                    // TODO: extract this 0.7 to be shared with default opacity for point/tick/...
+                    ...(markDef.type === 'area' && markDef.opacity === undefined && markDef.fillOpacity === undefined
+                        ? { opacity: 0.7 }
                         : {}),
                     ...markDef,
                 }),
@@ -6950,7 +6920,7 @@ class PathOverlayNormalizer {
             },
         ];
         // FIXME: determine rules for applying selections.
-        // Need to copy stack config to overlaid layer
+        // Need to copy stack config to overlayed layer
         // FIXME: normalizer shouldn't call `initMarkdef`, a method from an init phase.
         const stackProps = stack(initMarkdef(markDef, encoding, config), encoding);
         let overlayEncoding = encoding;
@@ -8296,7 +8266,7 @@ class TimeUnitNode extends DataFlowNode {
             else if (f) {
                 const { field: escapedField } = f;
                 // since this is a expression, we want the unescaped field name
-                const field = unescapeSingleQuoteAndPathDot(escapedField);
+                const field = escapedField.replaceAll('\\.', '.');
                 const expr = offsetExpr({ timeUnit: normalizedTimeUnit, field });
                 const endAs = offsetAs(field);
                 transforms.push({
@@ -9256,7 +9226,7 @@ function tooltip(model, opt = {}) {
         const datum = opt.reactiveGeom ? 'datum.datum' : 'datum';
         const mainRefFn = (cDef) => {
             // use valueRef based on channelDef first
-            const tooltipRefFromChannelDef = addLineBreaksToTooltip(cDef, config, datum);
+            const tooltipRefFromChannelDef = textRef(cDef, config, datum);
             if (tooltipRefFromChannelDef) {
                 return tooltipRefFromChannelDef;
             }
@@ -9335,7 +9305,7 @@ function tooltipData(encoding, stack, config, { reactiveGeom } = {}) {
                 normalizeStack: true,
             }).signal;
         }
-        value ??= addLineBreaksToTooltip(fieldDef, formatConfig, expr).signal;
+        value ??= textRef(fieldDef, formatConfig, expr).signal;
         tuples.push({ channel, key, value });
     }
     forEach(encoding, (channelDef, channel) => {
@@ -9358,22 +9328,6 @@ function tooltipRefForEncoding(encoding, stack, config, { reactiveGeom } = {}) {
     const data = tooltipData(encoding, stack, config, { reactiveGeom });
     const keyValues = entries$1(data).map(([key, value]) => `"${key}": ${value}`);
     return keyValues.length > 0 ? { signal: `{${keyValues.join(', ')}}` } : undefined;
-}
-/**
- * Transforms a tooltip value that is an array to a string with line breaks
- */
-function addLineBreaksToTooltip(channelDef, config, expr = 'datum') {
-    if (isFieldDef(channelDef) &&
-        isDiscrete$1(channelDef.type) &&
-        !channelDef.timeUnit &&
-        !getFormatMixins(channelDef).format &&
-        !getFormatMixins(channelDef).formatType) {
-        const fieldString = `${expr}["${channelDef.field}"]`;
-        return {
-            signal: `isValid(${fieldString}) ? isArray(${fieldString}) ? join(${fieldString}, '\\n') : ${fieldString} : ""+${fieldString}`,
-        };
-    }
-    return textRef(channelDef, config, expr);
 }
 
 function aria(model) {
@@ -9431,8 +9385,6 @@ function description(model) {
     return {
         description: {
             signal: entries$1(data)
-                .filter(([key]) => !key.startsWith('_')) // remove internal/private signals from aria description
-                .map(([key, value]) => [key, value.replaceAll('\\n', ' ')]) // replace newlines with spaces in aria description
                 .map(([key, value], index) => `"${index > 0 ? '; ' : ''}${key}: " + (${value})`)
                 .join(' + '),
         },
@@ -9910,6 +9862,7 @@ function defaultSizeRef(sizeChannel, scaleName, scale, config, bandSize, hasFiel
             }
             else if (bandSize.band !== 1) {
                 warn(cannotUseRelativeBandSizeWithNonBandScale(scaleType));
+                bandSize = undefined;
             }
         }
         else {
@@ -10004,27 +9957,6 @@ function positionAndSize(fieldDef, channel, model) {
     const vgChannel = vgAlignedPositionChannel(channel, markDef, config, defaultBandAlign);
     const center = vgChannel === 'xc' || vgChannel === 'yc';
     const { offset, offsetType } = positionOffset({ channel, markDef, encoding, model, bandPosition: center ? 0.5 : 0 });
-    // When a centered rect-based mark (e.g., a tick with an explicit size) is
-    // placed on a timeUnit-binned field, honor `timeUnitBandPosition` so this
-    // path stays aligned with the `rectBinPosition` path used by bars without an
-    // explicit size. Skip when:
-    // - the mark is not centered (bars spanning a full band need `bandPosition = 0`), or
-    // - an encoding-driven offset is in play (e.g., `xOffset`), which already
-    //   positions the mark at the band's leading edge.
-    // See https://github.com/vega/vega-lite/issues/9836.
-    const timeUnitBandPosition = center && offsetType !== 'encoding' && isFieldDef(fieldDef) && fieldDef.timeUnit && !encoding[channel2]
-        ? getBandPosition({ fieldDef, markDef, config })
-        : undefined;
-    const bandPosition = timeUnitBandPosition ??
-        (center
-            ? offsetType === 'encoding'
-                ? 0
-                : 0.5
-            : isSignalRef(bandSize)
-                ? { signal: `(1-${bandSize})/2` }
-                : isRelativeBandSize(bandSize)
-                    ? (1 - bandSize.band) / 2
-                    : 0);
     const posRef = midPointRefWithPositionInvalidTest({
         channel,
         channelDef: fieldDef,
@@ -10035,7 +9967,15 @@ function positionAndSize(fieldDef, channel, model) {
         stack,
         offset,
         defaultRef: pointPositionDefaultRef({ model, defaultPos: 'mid', channel, scaleName, scale }),
-        bandPosition,
+        bandPosition: center
+            ? offsetType === 'encoding'
+                ? 0
+                : 0.5
+            : isSignalRef(bandSize)
+                ? { signal: `(1-${bandSize})/2` }
+                : isRelativeBandSize(bandSize)
+                    ? (1 - bandSize.band) / 2
+                    : 0,
     });
     if (vgSizeChannel) {
         return { [vgChannel]: posRef, ...sizeMixins };
@@ -12340,8 +12280,8 @@ function parseLegendForChannel(model, channel) {
                 ...(selections?.length && isFieldDef(fieldOrDatumDef)
                     ? { name: `${varName(fieldOrDatumDef.field)}_legend_${part}` }
                     : {}),
-                ...(selections?.length ? { interactive: true } : {}),
-                update: selections?.length ? { ...value, cursor: { value: 'pointer' } } : value,
+                ...(selections?.length ? { interactive: !!selections } : {}),
+                update: value,
             };
         }
     }
@@ -12430,6 +12370,298 @@ function mergeSymbolType(st1, st2) {
         return st2;
     }
     return st1;
+}
+
+function setLegendEncode(legend, part, vgProp, vgRef) {
+    legend.encode ??= {};
+    legend.encode[part] ??= {};
+    legend.encode[part].update ??= {};
+    // TODO: remove as any after https://github.com/prisma/nexus-prisma/issues/291
+    legend.encode[part].update[vgProp] = vgRef;
+}
+function assembleLegends(model) {
+    const legendComponentIndex = model.component.legends;
+    const legendByDomain = {};
+    for (const channel of keys(legendComponentIndex)) {
+        const scaleComponent = model.getScaleComponent(channel);
+        const domainHash = stringify(scaleComponent.get('domains'));
+        if (legendByDomain[domainHash]) {
+            for (const mergedLegendComponent of legendByDomain[domainHash]) {
+                const merged = mergeLegendComponent(mergedLegendComponent, legendComponentIndex[channel]);
+                if (!merged) {
+                    // If cannot merge, need to add this legend separately
+                    legendByDomain[domainHash].push(legendComponentIndex[channel]);
+                }
+            }
+        }
+        else {
+            legendByDomain[domainHash] = [legendComponentIndex[channel].clone()];
+        }
+    }
+    const legends = vals(legendByDomain)
+        .flat()
+        .map((l) => assembleLegend(l, model.config))
+        .filter((l) => l !== undefined);
+    return legends;
+}
+function assembleLegend(legendCmpt, config) {
+    const { disable, labelExpr, selections, ...legend } = legendCmpt.combine();
+    if (disable) {
+        return undefined;
+    }
+    if (config.aria === false && legend.aria == undefined) {
+        legend.aria = false;
+    }
+    if (legend.encode?.symbols) {
+        const out = legend.encode.symbols.update;
+        if (out.fill && out.fill['value'] !== 'transparent' && !out.stroke && !legend.stroke) {
+            // For non color channel's legend, we need to override symbol stroke config from Vega config if stroke channel is not used.
+            out.stroke = { value: 'transparent' };
+        }
+        // Remove properties that the legend is encoding.
+        for (const property of LEGEND_SCALE_CHANNELS) {
+            if (legend[property]) {
+                delete out[property];
+            }
+        }
+    }
+    if (!legend.title) {
+        // title schema doesn't include null, ''
+        delete legend.title;
+    }
+    if (labelExpr !== undefined) {
+        let expr = labelExpr;
+        if (legend.encode?.labels?.update && isSignalRef(legend.encode.labels.update.text)) {
+            expr = replaceAll(labelExpr, 'datum.label', legend.encode.labels.update.text.signal);
+        }
+        setLegendEncode(legend, 'labels', 'text', { signal: expr });
+    }
+    return legend;
+}
+
+function assembleProjections(model) {
+    if (isLayerModel(model) || isConcatModel(model)) {
+        return assembleProjectionsForModelAndChildren(model);
+    }
+    else {
+        return assembleProjectionForModel(model);
+    }
+}
+function assembleProjectionsForModelAndChildren(model) {
+    return model.children.reduce((projections, child) => {
+        return projections.concat(child.assembleProjections());
+    }, assembleProjectionForModel(model));
+}
+function assembleProjectionForModel(model) {
+    const component = model.component.projection;
+    if (!component || component.merged) {
+        return [];
+    }
+    const projection = component.combine();
+    const { name } = projection; // we need to extract name so that it is always present in the output and pass TS type validation
+    if (!component.data) {
+        // generate custom projection, no automatic fitting
+        return [
+            {
+                name,
+                // translate to center by default
+                translate: { signal: '[width / 2, height / 2]' },
+                // parameters, overwrite default translate if specified
+                ...projection,
+            },
+        ];
+    }
+    else {
+        // generate projection that uses extent fitting
+        const size = {
+            signal: `[${component.size.map((ref) => ref.signal).join(', ')}]`,
+        };
+        const fits = component.data.reduce((sources, data) => {
+            const source = isSignalRef(data) ? data.signal : `data('${model.lookupDataSource(data)}')`;
+            if (!contains(sources, source)) {
+                // build a unique list of sources
+                sources.push(source);
+            }
+            return sources;
+        }, []);
+        if (fits.length <= 0) {
+            throw new Error("Projection's fit didn't find any data sources");
+        }
+        return [
+            {
+                name,
+                size,
+                fit: {
+                    signal: fits.length > 1 ? `[${fits.join(', ')}]` : fits[0],
+                },
+                ...projection,
+            },
+        ];
+    }
+}
+
+const PROJECTION_PROPERTIES = [
+    'type',
+    'clipAngle',
+    'clipExtent',
+    'center',
+    'rotate',
+    'precision',
+    'reflectX',
+    'reflectY',
+    'coefficient',
+    'distance',
+    'fraction',
+    'lobes',
+    'parallel',
+    'radius',
+    'ratio',
+    'spacing',
+    'tilt',
+];
+
+class ProjectionComponent extends Split {
+    specifiedProjection;
+    size;
+    data;
+    merged = false;
+    constructor(name, specifiedProjection, size, data) {
+        super({ ...specifiedProjection }, // all explicit properties of projection
+        { name });
+        this.specifiedProjection = specifiedProjection;
+        this.size = size;
+        this.data = data;
+    }
+    /**
+     * Whether the projection parameters should fit provided data.
+     */
+    get isFit() {
+        return !!this.data;
+    }
+}
+
+function parseProjection(model) {
+    model.component.projection = isUnitModel(model) ? parseUnitProjection(model) : parseNonUnitProjections(model);
+}
+function parseUnitProjection(model) {
+    if (model.hasProjection) {
+        const proj = replaceExprRef(model.specifiedProjection);
+        const fit = !(proj && (proj.scale != null || proj.translate != null));
+        const size = fit ? [model.getSizeSignalRef('width'), model.getSizeSignalRef('height')] : undefined;
+        const data = fit ? gatherFitData(model) : undefined;
+        const projComp = new ProjectionComponent(model.projectionName(true), {
+            ...replaceExprRef(model.config.projection),
+            ...proj,
+        }, size, data);
+        if (!projComp.get('type')) {
+            projComp.set('type', 'equalEarth', false);
+        }
+        return projComp;
+    }
+    return undefined;
+}
+function gatherFitData(model) {
+    const data = [];
+    const { encoding } = model;
+    for (const posssiblePair of [
+        [LONGITUDE, LATITUDE],
+        [LONGITUDE2, LATITUDE2],
+    ]) {
+        if (getFieldOrDatumDef(encoding[posssiblePair[0]]) || getFieldOrDatumDef(encoding[posssiblePair[1]])) {
+            data.push({
+                signal: model.getName(`geojson_${data.length}`),
+            });
+        }
+    }
+    if (model.channelHasField(SHAPE) && model.typedFieldDef(SHAPE).type === GEOJSON) {
+        data.push({
+            signal: model.getName(`geojson_${data.length}`),
+        });
+    }
+    if (data.length === 0) {
+        // main source is geojson, so we can just use that
+        data.push(model.requestDataName(DataSourceType.Main));
+    }
+    return data;
+}
+function mergeIfNoConflict(first, second) {
+    const allPropertiesShared = every(PROJECTION_PROPERTIES, (prop) => {
+        // neither has the property
+        if (!hasOwnProperty(first.explicit, prop) && !hasOwnProperty(second.explicit, prop)) {
+            return true;
+        }
+        // both have property and an equal value for property
+        if (hasOwnProperty(first.explicit, prop) &&
+            hasOwnProperty(second.explicit, prop) &&
+            // some properties might be signals or objects and require hashing for comparison
+            deepEqual(first.get(prop), second.get(prop))) {
+            return true;
+        }
+        return false;
+    });
+    const size = deepEqual(first.size, second.size);
+    if (size) {
+        if (allPropertiesShared) {
+            return first;
+        }
+        else if (deepEqual(first.explicit, {})) {
+            return second;
+        }
+        else if (deepEqual(second.explicit, {})) {
+            return first;
+        }
+    }
+    // if all properties don't match, let each unit spec have its own projection
+    return null;
+}
+function parseNonUnitProjections(model) {
+    if (model.children.length === 0) {
+        return undefined;
+    }
+    let nonUnitProjection;
+    // parse all children first
+    for (const child of model.children) {
+        parseProjection(child);
+    }
+    // analyze parsed projections, attempt to merge
+    const mergable = every(model.children, (child) => {
+        const projection = child.component.projection;
+        if (!projection) {
+            // child layer does not use a projection
+            return true;
+        }
+        else if (!nonUnitProjection) {
+            // cached 'projection' is null, cache this one
+            nonUnitProjection = projection;
+            return true;
+        }
+        else {
+            const merge = mergeIfNoConflict(nonUnitProjection, projection);
+            if (merge) {
+                nonUnitProjection = merge;
+            }
+            return !!merge;
+        }
+    });
+    // if cached one and all other children share the same projection,
+    if (nonUnitProjection && mergable) {
+        // so we can elevate it to the layer level
+        const name = model.projectionName(true);
+        const modelProjection = new ProjectionComponent(name, nonUnitProjection.specifiedProjection, nonUnitProjection.size, duplicate(nonUnitProjection.data));
+        // rename and assign all others as merged
+        for (const child of model.children) {
+            const projection = child.component.projection;
+            if (projection) {
+                if (projection.isFit) {
+                    modelProjection.data.push(...child.component.projection.data);
+                }
+                child.renameProjection(projection.get('name'), name);
+                projection.merged = true;
+            }
+        }
+        return modelProjection;
+    }
+    return undefined;
 }
 
 function rangeFormula(model, fieldDef, channel, config) {
@@ -14655,7 +14887,7 @@ function parseSingleChannelDomain(scaleType, domain, model, channel) {
                     sort: sort === true || !isObject(sort)
                         ? {
                             field: model.vgField(channel, {}),
-                            op: 'min',
+                            op: 'min', // min or max doesn't matter since we sort by the start of the bin range
                         }
                         : sort,
                 },
@@ -14985,423 +15217,6 @@ function assembleDomain(model, channel) {
     });
     // domains is an array that has to be merged into a single vega domain
     return mergeDomains(domains);
-}
-
-function setLegendEncode(legend, part, vgProp, vgRef) {
-    legend.encode ??= {};
-    legend.encode[part] ??= {};
-    legend.encode[part].update ??= {};
-    // @ts-expect-error expression is too complex for typescript to understand
-    legend.encode[part].update[vgProp] = vgRef;
-}
-/**
- * Determines the underlying field name for a given scale channel within a model hierarchy.
- * @param model - The model to search for the field definition
- * @param channel - The scale channel (e.g., 'color', 'size', 'shape') to find the field for
- * @returns The field name if found; otherwise undefined
- */
-function getFieldKeyForChannel(model, channel) {
-    if (isUnitModel(model)) {
-        const fd = model.fieldDef(channel);
-        if (fd?.field) {
-            return fd.field;
-        }
-    }
-    // Use explicit fields from children
-    const childFields = (model.children ?? [])
-        .map((child) => getFieldKeyForChannel(child, channel))
-        .filter((f) => !!f);
-    if (childFields.length > 0) {
-        const unique$1 = unique(childFields, hash);
-        if (unique$1.length === 1) {
-            return unique$1[0];
-        }
-        return undefined;
-    }
-    return undefined;
-}
-function legendsAreMergeCompatible(model, channelA, channelB) {
-    if (channelA === channelB)
-        return true;
-    const typeA = model.getScaleType(channelA);
-    const typeB = model.getScaleType(channelB);
-    if (!typeA || !typeB)
-        return false;
-    // Only require discrete/continuous compatibility here. Domain handling is done later.
-    const aIsDiscrete = hasDiscreteDomain(typeA);
-    const bIsDiscrete = hasDiscreteDomain(typeB);
-    return aIsDiscrete === bIsDiscrete;
-}
-function getLegendGroupKey(fieldKey, channel) {
-    return fieldKey ? `field:${fieldKey}` : `channel:${String(channel)}`;
-}
-function extractDiscreteValuesFromDomain(domain) {
-    if (isArray(domain)) {
-        const primitives = domain.filter(isPrimitive);
-        return primitives.length > 0 ? primitives : null;
-    }
-    if (isDataRefUnionedDomain(domain)) {
-        const values = [];
-        values.push(...domain.fields.flatMap((f) => (isArray(f) ? f.filter(isPrimitive) : [])));
-        if (values.length > 0) {
-            return unique(values, hash);
-        }
-    }
-    return null;
-}
-/**
- * Compute the union of discrete values from the domains of two channels.
- *
- * @param model - The model to compute the union of discrete values for
- * @param channelA - The first channel to compute the union of discrete values for
- * @param channelB - The second channel to compute the union of discrete values for
- * @returns The union of discrete values
- */
-function getDiscreteValuesForChannel(model, channel) {
-    try {
-        const domain = assembleDomain(model, channel);
-        return extractDiscreteValuesFromDomain(domain);
-    }
-    catch {
-        return null;
-    }
-}
-function unionDiscreteValuesForChannels(model, channelA, channelB) {
-    const vA = getDiscreteValuesForChannel(model, channelA);
-    const vB = getDiscreteValuesForChannel(model, channelB);
-    return vA && vB ? unique([...vA, ...vB], hash) : null;
-}
-function setImplicitLegendValues(cmpt, values, warnMessage) {
-    if (values && values.length > 0) {
-        const valuesProp = cmpt.getWithExplicit('values');
-        if (!valuesProp?.explicit) {
-            if (warnMessage) {
-                warn(warnMessage);
-            }
-            cmpt.set('values', values, false);
-        }
-    }
-}
-function domainsExplicitAndEqual(model, channelA, channelB) {
-    const scA = model.getScaleComponent(channelA);
-    const scB = model.getScaleComponent(channelB);
-    if (!scA || !scB)
-        return false;
-    const dA = scA.getWithExplicit('domains');
-    const dB = scB.getWithExplicit('domains');
-    if (!(dA?.explicit && dB?.explicit))
-        return false;
-    const assembledA = assembleDomain(model, channelA);
-    const assembledB = assembleDomain(model, channelB);
-    return hash(assembledA) === hash(assembledB);
-}
-/**
- * Assemble legends for a model. We group legends by the underlying field used by the encoding.
- *
- * @param model - The model to assemble legends for
- * @returns The assembled legends
- */
-function assembleLegends(model) {
-    const legendComponentIndex = model.component.legends;
-    const legendsByGroup = {};
-    for (const channel of keys(legendComponentIndex)) {
-        const fieldKey = getFieldKeyForChannel(model, channel);
-        const groupKey = getLegendGroupKey(fieldKey, channel);
-        if (!legendsByGroup[groupKey]) {
-            legendsByGroup[groupKey] = [{ channel, cmpt: legendComponentIndex[channel].clone() }];
-            continue;
-        }
-        let mergedIntoExisting = false;
-        for (const existing of legendsByGroup[groupKey]) {
-            if (!legendsAreMergeCompatible(model, existing.channel, channel)) {
-                continue;
-            }
-            const merged = mergeLegendComponent(existing.cmpt, legendComponentIndex[channel]);
-            if (merged) {
-                const typeA = model.getScaleType(existing.channel);
-                const typeB = model.getScaleType(channel);
-                if (typeA && typeB && hasDiscreteDomain(typeA) && hasDiscreteDomain(typeB)) {
-                    if (domainsExplicitAndEqual(model, existing.channel, channel)) {
-                        setImplicitLegendValues(existing.cmpt, getDiscreteValuesForChannel(model, existing.channel));
-                    }
-                    else {
-                        setImplicitLegendValues(existing.cmpt, unionDiscreteValuesForChannels(model, existing.channel, channel), 
-                        // Warn when unioning discrete legend values so that users are aware
-                        legendValuesUnioned(existing.channel, channel));
-                    }
-                }
-                mergedIntoExisting = true;
-                break;
-            }
-        }
-        if (!mergedIntoExisting) {
-            legendsByGroup[groupKey].push({ channel, cmpt: legendComponentIndex[channel].clone() });
-        }
-    }
-    const legends = vals(legendsByGroup)
-        .flat()
-        .map((entry) => assembleLegend(entry.cmpt, model.config))
-        .filter((l) => l !== undefined);
-    return legends;
-}
-function assembleLegend(legendCmpt, config) {
-    const { disable, labelExpr, selections, ...legend } = legendCmpt.combine();
-    if (disable) {
-        return undefined;
-    }
-    if (config.aria === false && legend.aria == undefined) {
-        legend.aria = false;
-    }
-    if (legend.encode?.symbols) {
-        const out = legend.encode.symbols.update;
-        if (out.fill && out.fill['value'] !== 'transparent' && !out.stroke && !legend.stroke) {
-            // For non color channel's legend, we need to override symbol stroke config from Vega config if stroke channel is not used.
-            out.stroke = { value: 'transparent' };
-        }
-        // Remove properties that the legend is encoding.
-        for (const property of LEGEND_SCALE_CHANNELS) {
-            if (legend[property]) {
-                delete out[property];
-            }
-        }
-    }
-    if (!legend.title) {
-        // title schema doesn't include null, ''
-        delete legend.title;
-    }
-    if (labelExpr !== undefined) {
-        let expr = labelExpr;
-        if (legend.encode?.labels?.update && isSignalRef(legend.encode.labels.update.text)) {
-            expr = replaceAll(labelExpr, 'datum.label', legend.encode.labels.update.text.signal);
-        }
-        setLegendEncode(legend, 'labels', 'text', { signal: expr });
-    }
-    return legend;
-}
-
-function assembleProjections(model) {
-    if (isLayerModel(model) || isConcatModel(model)) {
-        return assembleProjectionsForModelAndChildren(model);
-    }
-    else {
-        return assembleProjectionForModel(model);
-    }
-}
-function assembleProjectionsForModelAndChildren(model) {
-    return model.children.reduce((projections, child) => {
-        return projections.concat(child.assembleProjections());
-    }, assembleProjectionForModel(model));
-}
-function assembleProjectionForModel(model) {
-    const component = model.component.projection;
-    if (!component || component.merged) {
-        return [];
-    }
-    const projection = component.combine();
-    const { name } = projection; // we need to extract name so that it is always present in the output and pass TS type validation
-    if (!component.data) {
-        // generate custom projection, no automatic fitting
-        return [
-            {
-                name,
-                // translate to center by default
-                translate: { signal: '[width / 2, height / 2]' },
-                // parameters, overwrite default translate if specified
-                ...projection,
-            },
-        ];
-    }
-    else {
-        // generate projection that uses extent fitting
-        const size = {
-            signal: `[${component.size.map((ref) => ref.signal).join(', ')}]`,
-        };
-        const fits = component.data.reduce((sources, data) => {
-            const source = isSignalRef(data) ? data.signal : `data('${model.lookupDataSource(data)}')`;
-            if (!contains(sources, source)) {
-                // build a unique list of sources
-                sources.push(source);
-            }
-            return sources;
-        }, []);
-        if (fits.length <= 0) {
-            throw new Error("Projection's fit didn't find any data sources");
-        }
-        return [
-            {
-                name,
-                size,
-                fit: {
-                    signal: fits.length > 1 ? `[${fits.join(', ')}]` : fits[0],
-                },
-                ...projection,
-            },
-        ];
-    }
-}
-
-const PROJECTION_PROPERTIES = [
-    'type',
-    'clipAngle',
-    'clipExtent',
-    'center',
-    'rotate',
-    'precision',
-    'reflectX',
-    'reflectY',
-    'coefficient',
-    'distance',
-    'fraction',
-    'lobes',
-    'parallel',
-    'radius',
-    'ratio',
-    'spacing',
-    'tilt',
-];
-
-class ProjectionComponent extends Split {
-    specifiedProjection;
-    size;
-    data;
-    merged = false;
-    constructor(name, specifiedProjection, size, data) {
-        super({ ...specifiedProjection }, // all explicit properties of projection
-        { name });
-        this.specifiedProjection = specifiedProjection;
-        this.size = size;
-        this.data = data;
-    }
-    /**
-     * Whether the projection parameters should fit provided data.
-     */
-    get isFit() {
-        return !!this.data;
-    }
-}
-
-function parseProjection(model) {
-    model.component.projection = isUnitModel(model) ? parseUnitProjection(model) : parseNonUnitProjections(model);
-}
-function parseUnitProjection(model) {
-    if (model.hasProjection) {
-        const proj = replaceExprRef(model.specifiedProjection);
-        const fit = !(proj && (proj.scale != null || proj.translate != null));
-        const size = fit ? [model.getSizeSignalRef('width'), model.getSizeSignalRef('height')] : undefined;
-        const data = fit ? gatherFitData(model) : undefined;
-        const projComp = new ProjectionComponent(model.projectionName(true), {
-            ...replaceExprRef(model.config.projection),
-            ...proj,
-        }, size, data);
-        if (!projComp.get('type')) {
-            projComp.set('type', 'equalEarth', false);
-        }
-        return projComp;
-    }
-    return undefined;
-}
-function gatherFitData(model) {
-    const data = [];
-    const { encoding } = model;
-    for (const posssiblePair of [
-        [LONGITUDE, LATITUDE],
-        [LONGITUDE2, LATITUDE2],
-    ]) {
-        if (getFieldOrDatumDef(encoding[posssiblePair[0]]) || getFieldOrDatumDef(encoding[posssiblePair[1]])) {
-            data.push({
-                signal: model.getName(`geojson_${data.length}`),
-            });
-        }
-    }
-    if (model.channelHasField(SHAPE) && model.typedFieldDef(SHAPE).type === GEOJSON) {
-        data.push({
-            signal: model.getName(`geojson_${data.length}`),
-        });
-    }
-    if (data.length === 0) {
-        // main source is geojson, so we can just use that
-        data.push(model.requestDataName(DataSourceType.Main));
-    }
-    return data;
-}
-function mergeIfNoConflict(first, second) {
-    const allPropertiesShared = every(PROJECTION_PROPERTIES, (prop) => {
-        // neither has the property
-        if (!hasOwnProperty(first.explicit, prop) && !hasOwnProperty(second.explicit, prop)) {
-            return true;
-        }
-        // both have property and an equal value for property
-        if (hasOwnProperty(first.explicit, prop) &&
-            hasOwnProperty(second.explicit, prop) &&
-            // some properties might be signals or objects and require hashing for comparison
-            deepEqual(first.get(prop), second.get(prop))) {
-            return true;
-        }
-        return false;
-    });
-    const size = deepEqual(first.size, second.size);
-    if (size) {
-        if (allPropertiesShared) {
-            return first;
-        }
-        else if (deepEqual(first.explicit, {})) {
-            return second;
-        }
-        else if (deepEqual(second.explicit, {})) {
-            return first;
-        }
-    }
-    // if all properties don't match, let each unit spec have its own projection
-    return null;
-}
-function parseNonUnitProjections(model) {
-    if (model.children.length === 0) {
-        return undefined;
-    }
-    let nonUnitProjection;
-    // parse all children first
-    for (const child of model.children) {
-        parseProjection(child);
-    }
-    // analyze parsed projections, attempt to merge
-    const mergable = every(model.children, (child) => {
-        const projection = child.component.projection;
-        if (!projection) {
-            // child layer does not use a projection
-            return true;
-        }
-        else if (!nonUnitProjection) {
-            // cached 'projection' is null, cache this one
-            nonUnitProjection = projection;
-            return true;
-        }
-        else {
-            const merge = mergeIfNoConflict(nonUnitProjection, projection);
-            if (merge) {
-                nonUnitProjection = merge;
-            }
-            return !!merge;
-        }
-    });
-    // if cached one and all other children share the same projection,
-    if (nonUnitProjection && mergable) {
-        // so we can elevate it to the layer level
-        const name = model.projectionName(true);
-        const modelProjection = new ProjectionComponent(name, nonUnitProjection.specifiedProjection, nonUnitProjection.size, duplicate(nonUnitProjection.data));
-        // rename and assign all others as merged
-        for (const child of model.children) {
-            const projection = child.component.projection;
-            if (projection) {
-                if (projection.isFit) {
-                    modelProjection.data.push(...child.component.projection.data);
-                }
-                child.renameProjection(projection.get('name'), name);
-                projection.merged = true;
-            }
-        }
-        return modelProjection;
-    }
-    return undefined;
 }
 
 function assembleScales(model) {
@@ -15860,7 +15675,7 @@ function getOffsetRange(channel, model, offsetScaleType) {
 function getDiscretePositionSize(channel, size, viewConfig) {
     const sizeChannel = channel === X ? 'width' : 'height';
     const sizeValue = size[sizeChannel];
-    if (sizeValue !== undefined) {
+    if (sizeValue) {
         return sizeValue;
     }
     return getViewConfigDiscreteSize(viewConfig, sizeChannel);
@@ -17111,7 +16926,7 @@ class GeoJSONNode extends DataFlowNode {
         if (model.channelHasField(SHAPE)) {
             const fieldDef = model.typedFieldDef(SHAPE);
             if (fieldDef.type === GEOJSON) {
-                parent = new GeoJSONNode(parent, null, fieldDef.field, model.getName(`geojson_${geoJsonCounter}`));
+                parent = new GeoJSONNode(parent, null, fieldDef.field, model.getName(`geojson_${geoJsonCounter++}`));
             }
         }
         return parent;
@@ -17934,7 +17749,7 @@ function parseUnitLayoutSize(model) {
     const { size, component } = model;
     for (const channel of POSITION_SCALE_CHANNELS) {
         const sizeType = getSizeChannel(channel);
-        if (size[sizeType] != undefined && size[sizeType] != null) {
+        if (size[sizeType]) {
             const specifiedSize = size[sizeType];
             component.layoutSize.set(sizeType, isStep(specifiedSize) ? 'step' : specifiedSize, true);
         }
@@ -19251,8 +19066,8 @@ class UnitModel extends ModelWithField {
             size: isFrameMixins(spec)
                 ? {
                     ...parentGivenSize,
-                    ...(spec.width !== undefined ? { width: spec.width } : {}),
-                    ...(spec.height !== undefined ? { height: spec.height } : {}),
+                    ...(spec.width ? { width: spec.width } : {}),
+                    ...(spec.height ? { height: spec.height } : {}),
                 }
                 : parentGivenSize,
         });
@@ -19264,7 +19079,6 @@ class UnitModel extends ModelWithField {
         this.specifiedProjection = spec.projection;
         // Selections will be initialized upon parse.
         this.selection = (spec.params ?? []).filter((p) => isSelectionParameter(p));
-        this.alignStackOrderWithColorDomain();
     }
     get hasProjection() {
         const { encoding } = this;
@@ -19345,38 +19159,6 @@ class UnitModel extends ModelWithField {
             }
             return _legend;
         }, {});
-    }
-    /**
-     * If this unit lacks order encoding but does contain a color domain
-     * add transform and encoding that aligns the stack order with the color domain.
-     */
-    alignStackOrderWithColorDomain() {
-        const { color, fill, order, xOffset, yOffset } = this.encoding;
-        const colorField = fill || color;
-        const colorEncoding = isFieldDef(colorField) ? colorField : undefined;
-        const field = colorEncoding?.field;
-        const scale = colorEncoding?.scale;
-        const colorEncodingType = colorEncoding?.type;
-        const domain = scale?.domain;
-        const offset = xOffset || yOffset;
-        const offsetEncoding = isFieldDef(offset) ? offset : undefined;
-        const orderFieldName = `_${field}_sort_index`;
-        if (!order && Array.isArray(domain) && typeof field === 'string' && colorEncodingType === 'nominal') {
-            // align grouped chart order with color domain
-            if (offsetEncoding && !offsetEncoding.sort) {
-                offsetEncoding.sort = domain;
-            }
-            else {
-                // align stacked chart order with color domain
-                if (!this.stack) {
-                    return;
-                }
-                const orderExpression = `indexof(${stringValue(domain)}, datum['${field}'])`;
-                const sort = this.markDef?.orient === 'horizontal' ? 'ascending' : 'descending';
-                this.transforms.push({ calculate: orderExpression, as: orderFieldName });
-                this.encoding.order = { field: orderFieldName, type: 'quantitative', sort };
-            }
-        }
     }
     parseData() {
         this.component.data = parseData(this);
@@ -20068,14 +19850,6 @@ function getMarkGroup(model, opt = { fromPrefix: '' }) {
     const key = encoding.key;
     const sort = getSort(model);
     const interactive = interactiveFlag(model);
-    // set pointer cursor for point selections that are not bound
-    if (interactive &&
-        Object.values(model.component.selection).some((s) => s.type === 'point' &&
-            !s.bind &&
-            // if on is a pointerover (hover) the pointer makes less sense since the mark is not clickable.
-            s.on !== 'pointerover')) {
-        model.markDef.cursor ??= 'pointer';
-    }
     const aria = getMarkPropOrConfig('aria', markDef, config);
     const postEncodingTransform = markCompiler[mark].postEncodingTransform
         ? markCompiler[mark].postEncodingTransform(model)
@@ -20589,5 +20363,5 @@ function assembleTopLevelModel(model, topLevelProperties, datasets = {}, usermet
 
 const version = pkg.version;
 
-export { accessPathDepth, accessPathWithDatum, accessWithDatumToUnescapedPath, compile, contains, deepEqual, deleteNestedProperty, duplicate, entries$1 as entries, every, fieldIntersection, flatAccessWithDatum, getFirstDefined, hasIntersection, hasProperty, hash, internalField, isBoolean, isEmpty, isEqual, isInternalField, isNullOrFalse, isNumeric, isPrimitive, keys, logicalExpr, mergeDeep, never, normalize, normalizeAngle, omit, pick, prefixGenerator, removePathFromField, replaceAll, replacePathInField, resetIdCounter, setEqual, some, stringify, titleCase, unescapeSingleQuoteAndPathDot, unique, uniqueId, vals, varName, version };
+export { accessPathDepth, accessPathWithDatum, accessWithDatumToUnescapedPath, compile, contains, deepEqual, deleteNestedProperty, duplicate, entries$1 as entries, every, fieldIntersection, flatAccessWithDatum, getFirstDefined, hasIntersection, hasProperty, hash, internalField, isBoolean, isEmpty, isEqual, isInternalField, isNullOrFalse, isNumeric, keys, logicalExpr, mergeDeep, never, normalize, normalizeAngle, omit, pick, prefixGenerator, removePathFromField, replaceAll, replacePathInField, resetIdCounter, setEqual, some, stringify, titleCase, unique, uniqueId, vals, varName, version };
 //# sourceMappingURL=index.js.map

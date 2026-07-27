@@ -2,11 +2,10 @@ import { Config } from '../../../config.js';
 import { Encoding } from '../../../encoding.js';
 import { StackProperties } from '../../../stack.js';
 import { Dict } from '../../../util.js';
-import { VgValueRef } from '../../../vega.schema.js';
 import { UnitModel } from '../../unit.js';
 export declare function tooltip(model: UnitModel, opt?: {
     reactiveGeom?: boolean;
-}): Partial<Record<import("../../../vega.schema.js").VgEncodeChannel, VgValueRef | (VgValueRef & {
+}): Partial<Record<import("../../../vega.schema.js").VgEncodeChannel, import("../../../vega.schema.js").VgValueRef | (import("../../../vega.schema.js").VgValueRef & {
     test?: string;
 })[]>> | {
     tooltip: {
