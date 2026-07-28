@@ -32,7 +32,7 @@ import {TimeUnitNode} from './timeunit.js';
 import {WindowTransformNode} from './window.js';
 import {DataComponent} from './index.js';
 
-function makeWalkTree(data: VgData[]) {
+function makeWalkTree(data: VgData[], namePrefix = 'data') {
   // to name datasources
   let datasetIndex = 0;
 
@@ -72,7 +72,7 @@ function makeWalkTree(data: VgData[]) {
 
     if (node instanceof FacetNode) {
       if (!dataSource.name) {
-        dataSource.name = `data_${datasetIndex++}`;
+        dataSource.name = `${namePrefix}_${datasetIndex++}`;
       }
 
       if (!dataSource.source || dataSource.transform.length > 0) {
@@ -132,7 +132,7 @@ function makeWalkTree(data: VgData[]) {
         node.setSource(dataSource.name);
       } else {
         if (!dataSource.name) {
-          dataSource.name = `data_${datasetIndex++}`;
+          dataSource.name = `${namePrefix}_${datasetIndex++}`;
         }
 
         // Here we set the name of the datasource we generated. From now on
@@ -165,7 +165,7 @@ function makeWalkTree(data: VgData[]) {
         break;
       default: {
         if (!dataSource.name) {
-          dataSource.name = `data_${datasetIndex++}`;
+          dataSource.name = `${namePrefix}_${datasetIndex++}`;
         }
 
         let source = dataSource.name;
@@ -196,7 +196,12 @@ function makeWalkTree(data: VgData[]) {
  */
 export function assembleFacetData(root: FacetNode): VgData[] {
   const data: VgData[] = [];
-  const walkTree = makeWalkTree(data);
+  // Facet-scoped datasets get their own prefix: this walk restarts its counter at
+  // 0, so plain `data_N` names collide with the top-level ones. Vega resolves a
+  // reference in the innermost scope, so a cell dataset would silently shadow the
+  // top-level dataset of the same name — which breaks a scale inside the cell that
+  // deliberately points at the shared (post-facet) copy of the data for its domain.
+  const walkTree = makeWalkTree(data, 'facet_data');
 
   for (const child of root.children) {
     walkTree(child, {

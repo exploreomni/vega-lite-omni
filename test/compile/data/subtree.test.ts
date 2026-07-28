@@ -103,7 +103,7 @@ describe('compile/data/subtree', () => {
 
       const cell = spec.marks.find((mark) => mark.name === 'cell') as GroupMark;
       expect(cell.data[0]).toEqual({
-        name: 'data_0',
+        name: 'facet_data_0',
         source: 'facet',
         transform: [
           {

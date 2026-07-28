@@ -1,6 +1,8 @@
 import type {SignalRef} from 'vega';
 import {ROW} from '../../src/channel.js';
+import {compile} from '../../src/compile/compile.js';
 import {FacetModel} from '../../src/compile/facet.js';
+import {FACET_SCALE_PREFIX} from '../../src/compile/data/optimize.js';
 import {assembleLabelTitle} from '../../src/compile/header/assemble.js';
 import * as log from '../../src/log/index.js';
 import {DEFAULT_SPACING} from '../../src/spec/base.js';
@@ -264,6 +266,80 @@ describe('FacetModel', () => {
       const headerMarks = model.assembleHeaderMarks();
       const rowGuides = headerMarks.filter((d) => d.name === 'row_header' || d.name === 'row_footer');
       expect(rowGuides.flatMap((d) => (d as any).axes ?? [])).toEqual([]);
+    });
+
+    it('should share a child layer’s independent scales across cells by default', () => {
+      // `parseNonUnitScaleCore` only defaults resolve.scale[channel] for channels that
+      // reach the facet as a merged child scale. y resolves independently below, so the
+      // facet has no y scale and the default was never assigned — leaving the domains
+      // scoped per cell even though the facet resolves y as 'shared'.
+      const model = parseFacetModelWithScale({
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          layer: [
+            {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'b', type: 'quantitative'}}},
+            {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'c', type: 'quantitative'}}},
+          ],
+          resolve: {scale: {y: 'independent'}},
+        },
+      });
+
+      // Every y domain reads the cloned post-facet subtree, so all cells agree.
+      for (const child of model.child.children) {
+        for (const domain of child.component.scales.y.get('domains')) {
+          expect((domain as any).data).toContain(FACET_SCALE_PREFIX);
+        }
+      }
+    });
+
+    it('should not let facet-scoped datasets shadow the top-level ones they reference', () => {
+      // Cell datasets are named by a separate walk whose counter restarts at 0, so
+      // plain `data_N` names collided with the top-level ones. Vega resolves in the
+      // innermost scope, so a cell dataset silently shadowed the top-level dataset a
+      // shared domain pointed at — one axis kept rescaling per cell.
+      const measureLayer = (field: string, name: string) => ({
+        layer: ['line', 'point'].map((mark) => ({
+          mark,
+          transform: [{calculate: `"${name}"`, as: 'm'}, {filter: `datum.${field} > 0`}],
+          encoding: {x: {field: 'a', type: 'nominal'}, y: {field, type: 'quantitative'}},
+        })),
+      });
+
+      const vgSpec = compile({
+        data: {values: [{a: 'A', b: 1, c: 2, f: 'x'}]},
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          layer: [measureLayer('b', 'm1'), measureLayer('c', 'm2')],
+          resolve: {scale: {y: 'independent'}},
+        },
+      } as any).spec;
+
+      const topLevelNames = (vgSpec.data ?? []).map((d) => d.name);
+      const cell = (vgSpec.marks ?? []).find((m) => m.name === 'cell') as any;
+      const cellNames = (cell.data ?? []).map((d: any) => d.name);
+
+      expect(cellNames.length).toBeGreaterThan(0);
+      expect(cellNames.filter((n: string) => topLevelNames.includes(n))).toEqual([]);
+    });
+
+    it('should keep a child layer’s independent scales per cell when the facet resolves y independently', () => {
+      const model = parseFacetModelWithScale({
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          layer: [
+            {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'b', type: 'quantitative'}}},
+            {mark: 'line', encoding: {x: {field: 'a', type: 'nominal'}, y: {field: 'c', type: 'quantitative'}}},
+          ],
+          resolve: {scale: {y: 'independent'}},
+        },
+        resolve: {scale: {y: 'independent'}},
+      });
+
+      for (const child of model.child.children) {
+        for (const domain of child.component.scales.y.get('domains')) {
+          expect((domain as any).data).not.toContain(FACET_SCALE_PREFIX);
+        }
+      }
     });
   });
 
