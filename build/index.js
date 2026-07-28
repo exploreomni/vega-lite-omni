@@ -14704,7 +14704,12 @@ function parseUnitScaleDomain(model) {
             while (!isFacetModel(facetParent) && facetParent.parent) {
                 facetParent = facetParent.parent;
             }
-            const resolve = facetParent.component.resolve.scale[channel];
+            // `parseNonUnitScaleCore` only defaults `resolve.scale[channel]` for channels
+            // that reached the facet as a merged child scale. A descendant that resolves
+            // the channel independently leaves the facet with no scale on it, so the
+            // default is never assigned and the channel reads as `undefined` here —
+            // which silently scoped these domains per cell. Fall back to the default.
+            const resolve = facetParent.component.resolve.scale[channel] ?? defaultScaleResolve(channel, facetParent);
             if (resolve === 'shared') {
                 for (const domain of domains.value) {
                     // Replace the scale domain with data output from a cloned subtree after the facet.
@@ -17366,7 +17371,7 @@ class SampleTransformNode extends DataFlowNode {
     }
 }
 
-function makeWalkTree(data) {
+function makeWalkTree(data, namePrefix = 'data') {
     // to name datasources
     let datasetIndex = 0;
     /**
@@ -17403,7 +17408,7 @@ function makeWalkTree(data) {
         }
         if (node instanceof FacetNode) {
             if (!dataSource.name) {
-                dataSource.name = `data_${datasetIndex++}`;
+                dataSource.name = `${namePrefix}_${datasetIndex++}`;
             }
             if (!dataSource.source || dataSource.transform.length > 0) {
                 data.push(dataSource);
@@ -17456,7 +17461,7 @@ function makeWalkTree(data) {
             }
             else {
                 if (!dataSource.name) {
-                    dataSource.name = `data_${datasetIndex++}`;
+                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
                 }
                 // Here we set the name of the datasource we generated. From now on
                 // other assemblers can use it.
@@ -17486,7 +17491,7 @@ function makeWalkTree(data) {
                 break;
             default: {
                 if (!dataSource.name) {
-                    dataSource.name = `data_${datasetIndex++}`;
+                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
                 }
                 let source = dataSource.name;
                 if (!dataSource.source || dataSource.transform.length > 0) {
@@ -17514,7 +17519,12 @@ function makeWalkTree(data) {
  */
 function assembleFacetData(root) {
     const data = [];
-    const walkTree = makeWalkTree(data);
+    // Facet-scoped datasets get their own prefix: this walk restarts its counter at
+    // 0, so plain `data_N` names collide with the top-level ones. Vega resolves a
+    // reference in the innermost scope, so a cell dataset would silently shadow the
+    // top-level dataset of the same name — which breaks a scale inside the cell that
+    // deliberately points at the shared (post-facet) copy of the data for its domain.
+    const walkTree = makeWalkTree(data, 'facet_data');
     for (const child of root.children) {
         walkTree(child, {
             source: root.name,
