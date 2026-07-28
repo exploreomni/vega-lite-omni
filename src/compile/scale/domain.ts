@@ -55,6 +55,7 @@ import {FACET_SCALE_PREFIX} from '../data/optimize.js';
 import {OFFSETTED_RECT_END_SUFFIX, OFFSETTED_RECT_START_SUFFIX} from '../data/timeunit.js';
 import {getScaleDataSourceForHandlingInvalidValues} from '../invalid/datasources.js';
 import {isFacetModel, isUnitModel, Model} from '../model.js';
+import {defaultScaleResolve} from '../resolve.js';
 import {SignalRefWrapper} from '../signal.js';
 import {Explicit, makeExplicit, makeImplicit, mergeValuesWithExplicit} from '../split.js';
 import {UnitModel} from '../unit.js';
@@ -84,7 +85,12 @@ function parseUnitScaleDomain(model: UnitModel) {
         facetParent = facetParent.parent;
       }
 
-      const resolve = facetParent.component.resolve.scale[channel];
+      // `parseNonUnitScaleCore` only defaults `resolve.scale[channel]` for channels
+      // that reached the facet as a merged child scale. A descendant that resolves
+      // the channel independently leaves the facet with no scale on it, so the
+      // default is never assigned and the channel reads as `undefined` here —
+      // which silently scoped these domains per cell. Fall back to the default.
+      const resolve = facetParent.component.resolve.scale[channel] ?? defaultScaleResolve(channel, facetParent);
 
       if (resolve === 'shared') {
         for (const domain of domains.value) {
