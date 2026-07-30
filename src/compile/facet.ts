@@ -331,14 +331,16 @@ export class FacetModel extends ModelWithField {
           groupby.push(vgField(fieldDef, {binSuffix: 'end'}));
         }
 
+        // `fields` is a field reference, so a dot in the name stays escaped; `as` is
+        // the literal output name, so it must not be. They differ for dotted fields.
         if (isSortField(sort)) {
           const {field, op = DEFAULT_SORT_OP} = sort;
-          const outputName = facetSortFieldName(fieldDef, sort);
+          const outputName = facetSortFieldName(fieldDef, sort, {forAs: true});
           if (row && column) {
             // For crossed facet, use pre-calculate field as it requires a different groupby
             // For each calculated field, apply max and assign them to the same name as
             // all values of the same group should be the same anyway.
-            fields.push(outputName);
+            fields.push(facetSortFieldName(fieldDef, sort));
             ops.push('max');
             as.push(outputName);
           } else {
@@ -347,10 +349,9 @@ export class FacetModel extends ModelWithField {
             as.push(outputName);
           }
         } else if (isArray(sort)) {
-          const outputName = sortArrayIndexField(fieldDef, channel);
-          fields.push(outputName);
+          fields.push(sortArrayIndexField(fieldDef, channel));
           ops.push('max');
-          as.push(outputName);
+          as.push(sortArrayIndexField(fieldDef, channel, {forAs: true}));
         }
       }
     }
