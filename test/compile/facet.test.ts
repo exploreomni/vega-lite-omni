@@ -649,6 +649,98 @@ describe('FacetModel', () => {
       });
     });
 
+    it('should sort cells by an escaped sort field, matching the header order', () => {
+      const model: FacetModel = parseFacetModelWithScale({
+        facet: {
+          column: {
+            field: 'o\\.status',
+            type: 'nominal',
+            sort: {field: 'o\\.status__sort', order: 'ascending'},
+          },
+        },
+        spec: {
+          mark: 'bar',
+          encoding: {
+            y: {field: 'o\\.count', type: 'quantitative'},
+          },
+        },
+      });
+      model.parse();
+
+      const marks = model.assembleMarks();
+
+      expect(marks[0].from.facet.aggregate).toEqual({
+        fields: ['o\\.status__sort'],
+        ops: ['min'],
+        as: ['o.status__sort_by_o.status'],
+      });
+
+      // A name the aggregate didn't produce resolves to undefined, and the cells
+      // silently keep source order.
+      expect(marks[0].sort).toEqual({
+        field: ['datum["o.status__sort_by_o.status"]'],
+        order: ['ascending'],
+      });
+    });
+
+    it('should sort crossed cells by escaped sort fields', () => {
+      const model: FacetModel = parseFacetModelWithScale({
+        facet: {
+          row: {field: 'o\\.region', type: 'ordinal', sort: {field: 'o\\.r__sort', op: 'median'}},
+          column: {field: 'o\\.status', type: 'ordinal', sort: {field: 'o\\.s__sort', op: 'median'}},
+        },
+        spec: {
+          mark: 'point',
+          encoding: {
+            x: {field: 'o\\.count', type: 'quantitative'},
+          },
+        },
+      });
+      model.parse();
+
+      const marks = model.assembleMarks();
+
+      expect(marks[0].from.facet.aggregate).toEqual({
+        cross: true,
+        fields: ['median_o\\.r__sort_by_o\\.region', 'median_o\\.s__sort_by_o\\.status'],
+        ops: ['max', 'max'],
+        as: ['median_o.r__sort_by_o.region', 'median_o.s__sort_by_o.status'],
+      });
+
+      expect(marks[0].sort).toEqual({
+        field: ['datum["median_o.r__sort_by_o.region"]', 'datum["median_o.s__sort_by_o.status"]'],
+        order: ['ascending', 'ascending'],
+      });
+    });
+
+    it('should sort cells by an escaped sort array index field', () => {
+      const model: FacetModel = parseFacetModelWithScale({
+        facet: {
+          column: {field: 'o\\.status', type: 'ordinal', sort: ['Complete', 'Cancelled']},
+        },
+        spec: {
+          mark: 'point',
+          encoding: {
+            x: {field: 'o\\.count', type: 'quantitative'},
+          },
+        },
+      });
+      model.parse();
+
+      const marks = model.assembleMarks();
+
+      expect(marks[0].from.facet.aggregate).toEqual({
+        fields: ['column_o\\.status_sort_index'],
+        ops: ['max'],
+        as: ['column_o.status_sort_index'],
+      });
+
+      expect(marks[0].sort).toEqual({
+        field: ['datum["column_o.status_sort_index"]'],
+        order: ['ascending'],
+      });
+    });
+
     it('should add calculate cardinality for independent scales', () => {
       const model: FacetModel = parseFacetModelWithScale({
         facet: {
