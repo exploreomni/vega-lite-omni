@@ -648,7 +648,7 @@ function getSupportedMark(channel: ExtendedChannel): SupportedMark {
         bar: 'always',
         line: 'always',
         trail: 'always',
-        rect: 'always'
+        rect: 'always',
       };
     case ANGLE:
       return {point: 'always', square: 'always', text: 'always'};

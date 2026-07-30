@@ -164,8 +164,8 @@ describe('UnitModel', () => {
         mark: 'point',
         encoding: {
           x: {field: 'a', type: 'quantitative'},
-          label: {field: 'b', type: 'nominal'}
-        }
+          label: {field: 'b', type: 'nominal'},
+        },
       });
       model.parse();
       expect(model.labelMark).toEqual({
@@ -176,18 +176,21 @@ describe('UnitModel', () => {
         encode: {
           update: {
             fill: {value: 'black'},
-            description: {signal: '"b: " + (isValid(datum["b"]) ? datum["b"] : ""+datum["b"])'},
-            text: {signal: 'isValid(datum.datum["b"]) ? datum.datum["b"] : ""+datum.datum["b"]'}
-          }
+            description: {
+              signal:
+                '"b: " + (isValid(datum["b"]) ? isArray(datum["b"]) ? join(datum["b"], \' \') : datum["b"] : ""+datum["b"])',
+            },
+            text: {signal: 'isValid(datum.datum["b"]) ? datum.datum["b"] : ""+datum.datum["b"]'},
+          },
         },
         transform: [
           {
             type: 'label',
             size: {signal: '[width, height]'},
             anchor: ['top-right', 'top', 'top-left', 'left', 'bottom-left', 'bottom', 'bottom-right', 'middle'],
-            offset: [2, 2, 2, 2, 2, 2, 2, 2, 2]
-          }
-        ]
+            offset: [2, 2, 2, 2, 2, 2, 2, 2, 2],
+          },
+        ],
       });
     });
   });

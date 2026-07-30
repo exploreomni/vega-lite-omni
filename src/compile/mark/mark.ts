@@ -20,7 +20,11 @@ import {rect} from './rect.js';
 import {rule} from './rule.js';
 import {text} from './text.js';
 import {tick} from './tick.js';
-import {baseEncodeEntry as encodeBaseEncodeEntry, text as encodeText, nonPosition as encodeNonPosition} from './encode/index.js';
+import {
+  baseEncodeEntry as encodeBaseEncodeEntry,
+  text as encodeText,
+  nonPosition as encodeNonPosition,
+} from './encode/index.js';
 import {NormalizedUnitSpec} from '../../spec/index.js';
 import * as log from '../../log/index.js';
 import {LabelInheritableChannel, supportMark} from '../../channel.js';
@@ -346,23 +350,23 @@ const LINE_ANCHOR_DEFAULTS = {
   horizontal: {
     anchor: {
       start: ['bottom-left', 'bottom', 'bottom-right'] as LabelAnchor[],
-      end: ['top-left', 'top', 'top-right'] as LabelAnchor[]
+      end: ['top-left', 'top', 'top-right'] as LabelAnchor[],
     },
-    padding: 'height * 0.2'
+    padding: 'height * 0.2',
   },
   vertical: {
     anchor: {
       start: ['top-left', 'left', 'bottom-left'] as LabelAnchor[],
-      end: ['top-right', 'right', 'bottom-right'] as LabelAnchor[]
+      end: ['top-right', 'right', 'bottom-right'] as LabelAnchor[],
     },
-    padding: 'width * 0.2'
-  }
+    padding: 'width * 0.2',
+  },
 };
 
 function getLabelInheritableChannels(
   mark: Mark,
   encoding: Encoding<string>,
-  inherit?: LabelInheritableChannel | LabelInheritableChannel[]
+  inherit?: LabelInheritableChannel | LabelInheritableChannel[],
 ) {
   if (!inherit) {
     inherit = mark === 'line' || mark === 'trail' ? ['color', 'opacity'] : [];
@@ -370,8 +374,8 @@ function getLabelInheritableChannels(
 
   return Object.fromEntries(
     array(inherit)
-      .filter(channel => encoding[channel])
-      .map(channel => [channel, encoding[channel]])
+      .filter((channel) => encoding[channel])
+      .map((channel) => [channel, encoding[channel]]),
   );
 }
 
@@ -383,7 +387,7 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
   const {
     mark,
     stack,
-    markDef: {orient}
+    markDef: {orient},
   } = model;
 
   if (!supportMark('label', mark)) {
@@ -395,13 +399,13 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
   const {label} = model.encoding;
   const {position, avoid, mark: labelMark, method, lineAnchor, padding, inherit, ...textEncoding} = label;
 
-  const anchor = position?.map(p => p.anchor);
-  const offset = position?.map(p => p.offset);
+  const anchor = position?.map((p) => p.anchor);
+  const offset = position?.map((p) => p.offset);
 
   const common: LabelTransform = {
     type: 'label',
     size: {signal: '[width, height]'},
-    ...(padding === undefined ? {} : {padding})
+    ...(padding === undefined ? {} : {padding}),
   };
 
   let labelTransform: LabelTransform;
@@ -418,8 +422,8 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
             ? {anchor: ['middle'], offset: [0]}
             : {
                 anchor: orient === 'horizontal' ? ['right', 'right'] : ['top', 'top'],
-                offset: [2, -2]
-              })
+                offset: [2, -2],
+              }),
       };
       break;
     case 'line':
@@ -432,9 +436,9 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
           ? {anchor, offset}
           : {
               anchor: [...LINE_ANCHOR_DEFAULTS[orient].anchor[_lineAnchor]],
-              offset: [2, 2, 2]
+              offset: [2, 2, 2],
             }),
-        ...(padding === undefined ? {padding: null} : {})
+        ...(padding === undefined ? {padding: null} : {}),
       };
       break;
     }
@@ -448,14 +452,14 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
       labelTransform = {
         ...common,
         anchor: anchor ?? ['top-right', 'top', 'top-left', 'left', 'bottom-left', 'bottom', 'bottom-right', 'middle'],
-        offset: offset ?? [2, 2, 2, 2, 2, 2, 2, 2, 2]
+        offset: offset ?? [2, 2, 2, 2, 2, 2, 2, 2, 2],
       };
   }
 
   const textSpec: NormalizedUnitSpec = {
     data: null,
     mark: {type: 'text', ...(labelMark ?? {})},
-    encoding: {text: textEncoding, ...getLabelInheritableChannels(mark, originalEncoding, inherit)}
+    encoding: {text: textEncoding, ...getLabelInheritableChannels(mark, originalEncoding, inherit)},
   };
   const textModel = new UnitModel(textSpec, null, '', undefined, model.config);
   textModel.parse();
@@ -487,17 +491,17 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
             color: 'include',
             size: 'ignore',
             orient: 'ignore',
-            theta: 'ignore'
+            theta: 'ignore',
           }),
           // Drop 'x', 'y', 'radius', 'theta' because the position will be overriden by label-transform.
           // Drop 'angle' because label-transform does not work with angled text.
-          ['x', 'y', 'angle', 'radius', 'theta']
+          ['x', 'y', 'angle', 'radius', 'theta'],
         ),
         ...encodeText(textModel, 'text', 'datum.datum'),
-        ...encodeNonPosition('size', textModel, {vgChannel: 'fontSize'})
-      }
+        ...encodeNonPosition('size', textModel, {vgChannel: 'fontSize'}),
+      },
     },
-    transform: [labelTransform]
+    transform: [labelTransform],
   };
 }
 
