@@ -120,44 +120,44 @@ describe('Layer', () => {
         {
           mark: 'point',
           encoding: {
-            label: {field: 'b', type: 'quantitative'}
-          }
+            label: {field: 'b', type: 'quantitative'},
+          },
         },
         {
           layer: [
             {
               mark: 'point',
               encoding: {
-                label: {field: 'b', type: 'quantitative', avoid: 'all-marks'}
-              }
+                label: {field: 'b', type: 'quantitative', avoid: 'all-marks'},
+              },
             },
             {
               mark: 'point',
               encoding: {
-                label: {field: 'b', type: 'quantitative', avoid: 'base-mark'}
-              }
+                label: {field: 'b', type: 'quantitative', avoid: 'base-mark'},
+              },
             },
             {
               mark: 'point',
               encoding: {
-                label: {field: 'b', type: 'quantitative', avoid: {ancestor: 2}}
-              }
+                label: {field: 'b', type: 'quantitative', avoid: {ancestor: 2}},
+              },
             },
             {
               mark: 'point',
               encoding: {
-                label: {field: 'b', type: 'quantitative', avoid: {ancestor: 1}}
-              }
-            }
-          ]
+                label: {field: 'b', type: 'quantitative', avoid: {ancestor: 1}},
+              },
+            },
+          ],
         },
         {
           mark: 'point',
           encoding: {
-            x: {field: 'b', type: 'quantitative'}
-          }
-        }
-      ]
+            x: {field: 'b', type: 'quantitative'},
+          },
+        },
+      ],
     });
 
     model.parse();
@@ -174,11 +174,11 @@ describe('Layer', () => {
         'layer_1_layer_3_marks',
         'layer_0_marks',
         'layer_2_marks',
-        'layer_0_marks_label'
+        'layer_0_marks_label',
       ]);
       expect(((model.children[1] as LayerModel).children[1] as UnitModel).labelMark.transform[0].avoidMarks).toEqual([
         'layer_1_layer_0_marks_label',
-        'layer_0_marks_label'
+        'layer_0_marks_label',
       ]);
       expect(((model.children[1] as LayerModel).children[2] as UnitModel).labelMark.transform[0].avoidMarks).toEqual([
         'layer_1_layer_0_marks',
@@ -188,7 +188,7 @@ describe('Layer', () => {
         'layer_1_layer_1_marks_label',
         'layer_0_marks',
         'layer_2_marks',
-        'layer_0_marks_label'
+        'layer_0_marks_label',
       ]);
       expect(((model.children[1] as LayerModel).children[3] as UnitModel).labelMark.transform[0].avoidMarks).toEqual([
         'layer_1_layer_0_marks',
@@ -197,14 +197,14 @@ describe('Layer', () => {
         'layer_1_layer_0_marks_label',
         'layer_1_layer_1_marks_label',
         'layer_1_layer_2_marks_label',
-        'layer_0_marks_label'
+        'layer_0_marks_label',
       ]);
     });
 
     it('should assemble label to the end', () => {
       const marks = model.assembleMarks();
       expect(true).toBe(true);
-      expect(marks.map(mark => mark.type)).toEqual([
+      expect(marks.map((mark) => mark.type)).toEqual([
         'symbol',
         'symbol',
         'symbol',
@@ -215,14 +215,14 @@ describe('Layer', () => {
         'text',
         'text',
         'text',
-        'text'
+        'text',
       ]);
-      expect(marks.slice(6).map(mark => mark.transform[0])).toStrictEqual([
+      expect(marks.slice(6).map((mark) => mark.transform[0])).toStrictEqual([
         {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['top-right', 'top', 'top-left', 'left', 'bottom-left', 'bottom', 'bottom-right', 'middle'],
-          offset: [2, 2, 2, 2, 2, 2, 2, 2, 2]
+          offset: [2, 2, 2, 2, 2, 2, 2, 2, 2],
         },
         {
           type: 'label',
@@ -235,15 +235,15 @@ describe('Layer', () => {
             'layer_1_layer_3_marks',
             'layer_0_marks',
             'layer_2_marks',
-            'layer_0_marks_label'
-          ]
+            'layer_0_marks_label',
+          ],
         },
         {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['top-right', 'top', 'top-left', 'left', 'bottom-left', 'bottom', 'bottom-right', 'middle'],
           offset: [2, 2, 2, 2, 2, 2, 2, 2, 2],
-          avoidMarks: ['layer_1_layer_0_marks_label', 'layer_0_marks_label']
+          avoidMarks: ['layer_1_layer_0_marks_label', 'layer_0_marks_label'],
         },
         {
           type: 'label',
@@ -258,8 +258,8 @@ describe('Layer', () => {
             'layer_1_layer_1_marks_label',
             'layer_0_marks',
             'layer_2_marks',
-            'layer_0_marks_label'
-          ]
+            'layer_0_marks_label',
+          ],
         },
         {
           type: 'label',
@@ -273,9 +273,9 @@ describe('Layer', () => {
             'layer_1_layer_0_marks_label',
             'layer_1_layer_1_marks_label',
             'layer_1_layer_2_marks_label',
-            'layer_0_marks_label'
-          ]
-        }
+            'layer_0_marks_label',
+          ],
+        },
       ]);
     });
   });

@@ -363,7 +363,7 @@ export class UnitModel extends ModelWithField<Encoding<string>> {
       const {transform} = this.labelMark;
       const [l] = transform;
       if ('avoidMarks' in l) {
-        l.avoidMarks = unique(l.avoidMarks, m => m);
+        l.avoidMarks = unique(l.avoidMarks, (m) => m);
       }
     }
 
@@ -378,7 +378,7 @@ export class UnitModel extends ModelWithField<Encoding<string>> {
 
     marks = marks.map(this.correctDataNames);
     // move label marks to the top
-    return [...marks.filter(mark => !isLabelMark(mark)), ...marks.filter(isLabelMark)];
+    return [...marks.filter((mark) => !isLabelMark(mark)), ...marks.filter(isLabelMark)];
   }
   public assembleGroupStyle(): string | string[] {
     const {style} = this.view || {};
@@ -397,7 +397,7 @@ export class UnitModel extends ModelWithField<Encoding<string>> {
   }
 
   public getMarkNames(): string[] {
-    return (this.component.mark ?? []).map(m => m.name).filter(name => name);
+    return (this.component.mark ?? []).map((m) => m.name).filter((name) => name);
   }
 
   public getLabelNames(): string[] {

@@ -10,7 +10,7 @@ import {wrapCondition} from './conditional.js';
 export function text(
   model: UnitModel,
   channel: 'text' | 'href' | 'url' | 'description' = 'text',
-  expr: 'datum' | 'datum.datum' = 'datum'
+  expr: 'datum' | 'datum.datum' = 'datum',
 ) {
   const channelDef = model.encoding[channel];
   return wrapCondition({

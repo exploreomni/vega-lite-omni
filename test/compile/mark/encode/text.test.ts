@@ -40,10 +40,10 @@ describe('compile/mark/encode/text', () => {
       encoding: {
         text: {
           field: 'a',
-          type: 'quantitative'
-        }
+          type: 'quantitative',
+        },
       },
-      data: {url: 'data/population.json'}
+      data: {url: 'data/population.json'},
     });
 
     const textMixins = text(model, 'text', 'datum.datum');

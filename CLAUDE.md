@@ -36,11 +36,9 @@ Tests (vitest):
 npx vitest run test/
 ```
 
-The full test command in `package.json` includes lint, schema generation, examples, and runtime tests; for iterating on a feature, `npx vitest run test/<file>` is faster.
+`npm test` also runs lint, schema generation, `examples/`, and `test-runtime/`; for iterating on a feature, `npx vitest run test/<file>` is faster. Everything passes except `test-runtime/animation.test.ts`, which fails to import upstream too: it reads `examples/specs/data/gapminder.json`, a path nothing populates (`npm run data` rsyncs vega-datasets into `site/data`).
 
-## Known stale tests
-
-After rebasing onto a newer upstream release, **7 tests in `test/compile/mark/mark.test.ts > Mark > getLabel` may fail**. Reason: the label patch's snapshot expectations for the `description` signal were captured against `v6.2.0`. Upstream changed how nominal-value description signals format arrays (now wraps with `isArray() ? join() : ...`). These aren't real regressions — update the expected strings to match the new upstream signal generator.
+Expectations for the aria `description` signal are hand-written strings, not snapshots, so `-u` won't refresh them. If upstream changes that generator, edit them by hand — the inner quotes need escaping (`join(x, \' \')`) since the enclosing literal is single-quoted.
 
 ## Releasing
 

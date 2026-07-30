@@ -18,10 +18,10 @@ describe('compile/compile', () => {
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
-            label: {field: 'price', type: 'quantitative'}
-          }
-        }).spec
-      )
+            label: {field: 'price', type: 'quantitative'},
+          },
+        }).spec,
+      ),
     );
     const {spec} = compile({
       data: {

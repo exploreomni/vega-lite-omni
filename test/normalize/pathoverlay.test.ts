@@ -441,8 +441,8 @@ describe('PathOverlayNormalizer', () => {
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -453,18 +453,18 @@ describe('PathOverlayNormalizer', () => {
           mark: 'line',
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative'}
-          }
+            y: {field: 'price', type: 'quantitative'},
+          },
         },
         {
           mark: {type: 'point', opacity: 0, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
-        }
-      ]
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
+        },
+      ],
     });
   });
 
@@ -473,13 +473,13 @@ describe('PathOverlayNormalizer', () => {
       data: {url: 'data/stocks.csv'},
       mark: {
         type: 'line',
-        point: true
+        point: true,
       },
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -490,18 +490,18 @@ describe('PathOverlayNormalizer', () => {
           mark: 'line',
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative'}
-          }
+            y: {field: 'price', type: 'quantitative'},
+          },
         },
         {
           mark: {type: 'point', opacity: 1, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
-        }
-      ]
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
+        },
+      ],
     });
   });
 
@@ -510,14 +510,14 @@ describe('PathOverlayNormalizer', () => {
       data: {url: 'data/stocks.csv'},
       mark: {
         type: 'line',
-        point: true
+        point: true,
       },
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
         label: {field: 'price', type: 'quantitative'},
-        detail: {field: 'a', type: 'nominal'}
-      }
+        detail: {field: 'a', type: 'nominal'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -530,18 +530,18 @@ describe('PathOverlayNormalizer', () => {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
             label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
-            detail: {field: 'a', type: 'nominal'}
-          }
+            detail: {field: 'a', type: 'nominal'},
+          },
         },
         {
           mark: {type: 'point', opacity: 1, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
-            detail: {field: 'a', type: 'nominal'}
-          }
-        }
-      ]
+            detail: {field: 'a', type: 'nominal'},
+          },
+        },
+      ],
     });
   });
 
@@ -552,8 +552,8 @@ describe('PathOverlayNormalizer', () => {
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -564,18 +564,18 @@ describe('PathOverlayNormalizer', () => {
           mark: 'line',
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative'}
-          }
+            y: {field: 'price', type: 'quantitative'},
+          },
         },
         {
           mark: {type: 'point', opacity: 0, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
-        }
-      ]
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
+        },
+      ],
     });
   });
 
@@ -587,8 +587,8 @@ describe('PathOverlayNormalizer', () => {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
         label: {field: 'price', type: 'quantitative'},
-        detail: {field: 'a', type: 'nominal'}
-      }
+        detail: {field: 'a', type: 'nominal'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -602,8 +602,8 @@ describe('PathOverlayNormalizer', () => {
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -614,25 +614,25 @@ describe('PathOverlayNormalizer', () => {
           mark: {opacity: 0.7, type: 'area'},
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative'}
-          }
+            y: {field: 'price', type: 'quantitative'},
+          },
         },
         {
           mark: {type: 'line'},
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative', stack: 'zero'}
-          }
+            y: {field: 'price', type: 'quantitative', stack: 'zero'},
+          },
         },
         {
           mark: {type: 'point', opacity: 0, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative', stack: 'zero'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
-        }
-      ]
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
+        },
+      ],
     });
   });
 
@@ -643,8 +643,8 @@ describe('PathOverlayNormalizer', () => {
       encoding: {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -655,18 +655,18 @@ describe('PathOverlayNormalizer', () => {
           mark: {opacity: 0.7, type: 'area'},
           encoding: {
             x: {field: 'date', type: 'temporal'},
-            y: {field: 'price', type: 'quantitative'}
-          }
+            y: {field: 'price', type: 'quantitative'},
+          },
         },
         {
           mark: {type: 'point', opacity: 0, filled: true},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative', stack: 'zero'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
-        }
-      ]
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
+        },
+      ],
     });
   });
 
@@ -678,8 +678,8 @@ describe('PathOverlayNormalizer', () => {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
         color: {field: 'color', type: 'nominal'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -692,18 +692,18 @@ describe('PathOverlayNormalizer', () => {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative'},
             color: {field: 'color', type: 'nominal'},
-            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}}
-          }
+            label: {field: 'price', type: 'quantitative', avoid: {ancestor: 1}},
+          },
         },
         {
           mark: {type: 'line'},
           encoding: {
             x: {field: 'date', type: 'temporal'},
             y: {field: 'price', type: 'quantitative', stack: 'zero'},
-            color: {field: 'color', type: 'nominal'}
-          }
-        }
-      ]
+            color: {field: 'color', type: 'nominal'},
+          },
+        },
+      ],
     });
   });
 
@@ -715,8 +715,8 @@ describe('PathOverlayNormalizer', () => {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
         color: {field: 'color', type: 'nominal'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     };
 
     const normalizedSpec = normalize(spec);
@@ -727,8 +727,8 @@ describe('PathOverlayNormalizer', () => {
         x: {field: 'date', type: 'temporal'},
         y: {field: 'price', type: 'quantitative'},
         color: {field: 'color', type: 'nominal'},
-        label: {field: 'price', type: 'quantitative'}
-      }
+        label: {field: 'price', type: 'quantitative'},
+      },
     });
   });
 });
