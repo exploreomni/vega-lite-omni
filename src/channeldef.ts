@@ -1,4 +1,13 @@
-import {AreaLabelMethod, Gradient, LabelAnchor, LineLabelAnchor, ScaleType, SignalRef, Text, TimeFormatSpecifier} from 'vega';
+import {
+  AreaLabelMethod,
+  Gradient,
+  LabelAnchor,
+  LineLabelAnchor,
+  ScaleType,
+  SignalRef,
+  Text,
+  TimeFormatSpecifier,
+} from 'vega';
 import {isArray, isBoolean, isNumber, isString} from 'vega-util';
 import {isPrimitive} from './util.js';
 import {Aggregate, isAggregateOp, isArgmaxDef, isArgminDef, isCountingAggregateOp} from './aggregate.js';

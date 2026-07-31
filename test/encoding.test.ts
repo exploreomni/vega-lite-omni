@@ -482,8 +482,8 @@ describe('encoding', () => {
       const encoding: Encoding<string> = {
         label: {
           field: 'a',
-          type: 'quantitative'
-        }
+          type: 'quantitative',
+        },
       };
       expect(markChannelCompatible(encoding, LABEL, CIRCLE)).toBe(true);
       expect(markChannelCompatible(encoding, LABEL, POINT)).toBe(true);

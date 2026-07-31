@@ -331,8 +331,8 @@ describe('Mark', () => {
           encoding: {
             x: {type: 'quantitative', field: 'foo'},
             y: {type: 'nominal', field: 'bar'},
-            label: {type: 'nominal', field: 'bar2', avoid: {ancestor: 1}}
-          }
+            label: {type: 'nominal', field: 'bar2', avoid: {ancestor: 1}},
+          },
         });
         const {label} = parseMarkGroupsAndLabels(model);
         expect(label).toEqual({
@@ -343,27 +343,30 @@ describe('Mark', () => {
           encode: {
             update: {
               fill: {value: 'black'},
-              description: {signal: '"bar2: " + (isValid(datum["bar2"]) ? datum["bar2"] : ""+datum["bar2"])'},
-              text: {signal: 'isValid(datum.datum["bar2"]) ? datum.datum["bar2"] : ""+datum.datum["bar2"]'}
-            }
+              description: {
+                signal:
+                  '"bar2: " + (isValid(datum["bar2"]) ? isArray(datum["bar2"]) ? join(datum["bar2"], \' \') : datum["bar2"] : ""+datum["bar2"])',
+              },
+              text: {signal: 'isValid(datum.datum["bar2"]) ? datum.datum["bar2"] : ""+datum.datum["bar2"]'},
+            },
           },
-          transform: [{type: 'label', size: {signal: '[width, height]'}, anchor: ['right', 'right'], offset: [2, -2]}]
+          transform: [{type: 'label', size: {signal: '[width, height]'}, anchor: ['right', 'right'], offset: [2, -2]}],
         });
       });
 
       it(
         'should parse mark with label when the mark is stacked bar with rounded corner with a warning',
-        log.wrap(localLogger => {
+        log.wrap((localLogger) => {
           const model = parseUnitModelWithScale({
             mark: {
               type: 'bar',
-              cornerRadius: 2
+              cornerRadius: 2,
             },
             encoding: {
               x: {type: 'quantitative', field: 'foo'},
               y: {type: 'nominal', field: 'bar'},
-              label: {type: 'nominal', field: 'bar2', avoid: {ancestor: 1}}
-            }
+              label: {type: 'nominal', field: 'bar2', avoid: {ancestor: 1}},
+            },
           });
           const {mark, label} = parseMarkGroupsAndLabels(model);
           expect(label).toBeFalsy();
@@ -375,14 +378,19 @@ describe('Mark', () => {
             encode: {
               update: {
                 fill: {value: 'black'},
-                description: {signal: '"bar2: " + (isValid(datum["bar2"]) ? datum["bar2"] : ""+datum["bar2"])'},
-                text: {signal: 'isValid(datum.datum["bar2"]) ? datum.datum["bar2"] : ""+datum.datum["bar2"]'}
-              }
+                description: {
+                  signal:
+                    '"bar2: " + (isValid(datum["bar2"]) ? isArray(datum["bar2"]) ? join(datum["bar2"], \' \') : datum["bar2"] : ""+datum["bar2"])',
+                },
+                text: {signal: 'isValid(datum.datum["bar2"]) ? datum.datum["bar2"] : ""+datum.datum["bar2"]'},
+              },
             },
-            transform: [{type: 'label', size: {signal: '[width, height]'}, anchor: ['right', 'right'], offset: [2, -2]}]
+            transform: [
+              {type: 'label', size: {signal: '[width, height]'}, anchor: ['right', 'right'], offset: [2, -2]},
+            ],
           });
           expect(localLogger.warns[0]).toEqual(log.message.ROUNDED_CORNERS_STACKED_BAR_WITH_AVOID);
-        })
+        }),
       );
     });
   });
@@ -584,7 +592,7 @@ describe('Mark', () => {
     it('should return empty array when a model does not encode label', () => {
       const model = parseUnitModel({
         mark: 'point',
-        encoding: {x: {type: 'nominal', field: 'col'}}
+        encoding: {x: {type: 'nominal', field: 'col'}},
       });
       const label = getLabelMark(model, 'anything');
       expect(label).toBeFalsy();
@@ -592,30 +600,30 @@ describe('Mark', () => {
 
     it(
       'should warn when getLabel on a mark that does not support label',
-      log.wrap(localLogger => {
+      log.wrap((localLogger) => {
         const model = parseUnitModel({
           mark: 'arc',
-          encoding: {x: {type: 'nominal', field: 'col'}}
+          encoding: {x: {type: 'nominal', field: 'col'}},
         });
         model.encoding.label = {type: 'nominal', field: 'col'};
         const label = getLabelMark(model, 'anything');
         expect(label).toBeFalsy();
         expect(localLogger.warns[0]).toEqual(log.message.incompatibleChannel('label', 'arc'));
-      })
+      }),
     );
 
     describe('default label-transform config', () => {
       it('should have correct default label-transform config for area', () => {
         const model = parseUnitModelWithScale({
           mark: 'area',
-          encoding: {label: {type: 'nominal', field: 'col'}}
+          encoding: {label: {type: 'nominal', field: 'col'}},
         });
 
         const label = getLabelMark(model, 'anything');
         expect(label.transform[0]).toStrictEqual({
           type: 'label',
           size: {signal: '[width, height]'},
-          method: 'reduced-search'
+          method: 'reduced-search',
         });
       });
 
@@ -625,8 +633,8 @@ describe('Mark', () => {
           encoding: {
             x: {type: 'nominal', field: 'col1'},
             y: {type: 'quantitative', field: 'col2'},
-            label: {type: 'nominal', field: 'col'}
-          }
+            label: {type: 'nominal', field: 'col'},
+          },
         });
 
         const label = getLabelMark(model, 'anything');
@@ -634,7 +642,7 @@ describe('Mark', () => {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['top', 'top'],
-          offset: [2, -2]
+          offset: [2, -2],
         });
       });
 
@@ -644,8 +652,8 @@ describe('Mark', () => {
           encoding: {
             y: {type: 'nominal', field: 'col1'},
             x: {type: 'quantitative', field: 'col2'},
-            label: {type: 'nominal', field: 'col'}
-          }
+            label: {type: 'nominal', field: 'col'},
+          },
         });
 
         const label = getLabelMark(model, 'anything');
@@ -653,7 +661,7 @@ describe('Mark', () => {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['right', 'right'],
-          offset: [2, -2]
+          offset: [2, -2],
         });
       });
 
@@ -664,8 +672,8 @@ describe('Mark', () => {
             y: {type: 'nominal', field: 'col1'},
             x: {type: 'quantitative', field: 'col2'},
             color: {type: 'quantitative', field: 'col3'},
-            label: {type: 'nominal', field: 'col'}
-          }
+            label: {type: 'nominal', field: 'col'},
+          },
         });
 
         const label = getLabelMark(model, 'anything');
@@ -673,11 +681,11 @@ describe('Mark', () => {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['middle'],
-          offset: [0]
+          offset: [0],
         });
       });
 
-      (['line', 'trail'] as const).forEach(mark => {
+      (['line', 'trail'] as const).forEach((mark) => {
         it(`should have correct default lineAnchor for ${mark}`, () => {
           const model = parseUnitModelWithScale({
             mark,
@@ -685,15 +693,15 @@ describe('Mark', () => {
               x: {type: 'nominal', field: 'col1'},
               y: {type: 'quantitative', field: 'col2'},
               color: {type: 'quantitative', field: 'col3'},
-              label: {type: 'nominal', field: 'col'}
-            }
+              label: {type: 'nominal', field: 'col'},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
           expect(label.transform[0].lineAnchor).toBe('end');
           expect(label.encode.update.fill).toStrictEqual({field: 'col3', scale: 'color'});
           expect(label.encode.update.text).toStrictEqual({
-            signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]'
+            signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]',
           });
         });
 
@@ -712,8 +720,8 @@ describe('Mark', () => {
               tooltip: {type: 'quantitative', field: 'col11'},
               href: {type: 'quantitative', field: 'col12'},
               description: {type: 'quantitative', field: 'col14'},
-              label: {type: 'nominal', field: 'col'}
-            }
+              label: {type: 'nominal', field: 'col'},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
@@ -721,11 +729,11 @@ describe('Mark', () => {
           expect(label.encode.update).toStrictEqual({
             description: {
               signal:
-                '"col6: " + (format(datum["col6"], "")) + "; col: " + (isValid(datum["col"]) ? datum["col"] : ""+datum["col"])'
+                '"col6: " + (format(datum["col6"], "")) + "; col: " + (isValid(datum["col"]) ? isArray(datum["col"]) ? join(datum["col"], \' \') : datum["col"] : ""+datum["col"])',
             },
             fill: {value: 'black'},
             opacity: {field: 'col6', scale: 'opacity'},
-            text: {signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]'}
+            text: {signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]'},
           });
         });
 
@@ -744,8 +752,8 @@ describe('Mark', () => {
               tooltip: {type: 'quantitative', field: 'col11'},
               href: {type: 'quantitative', field: 'col12'},
               description: {type: 'quantitative', field: 'col14'},
-              label: {type: 'nominal', field: 'col', inherit: ['color', 'opacity', 'href']}
-            }
+              label: {type: 'nominal', field: 'col', inherit: ['color', 'opacity', 'href']},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
@@ -754,12 +762,12 @@ describe('Mark', () => {
             cursor: {value: 'pointer'},
             description: {
               signal:
-                '"col6: " + (format(datum["col6"], "")) + "; col: " + (isValid(datum["col"]) ? datum["col"] : ""+datum["col"]) + "; col12: " + (format(datum["col12"], ""))'
+                '"col6: " + (format(datum["col6"], "")) + "; col: " + (isValid(datum["col"]) ? isArray(datum["col"]) ? join(datum["col"], \' \') : datum["col"] : ""+datum["col"]) + "; col12: " + (format(datum["col12"], ""))',
             },
             fill: {value: 'black'},
             href: {signal: 'format(datum["col12"], "")'},
             opacity: {field: 'col6', scale: 'opacity'},
-            text: {signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]'}
+            text: {signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]'},
           });
         });
 
@@ -770,8 +778,8 @@ describe('Mark', () => {
               x: {type: 'nominal', field: 'col1'},
               y: {type: 'quantitative', field: 'col2'},
               color: {type: 'quantitative', field: 'col3'},
-              label: {type: 'nominal', field: 'col', lineAnchor: 'start'}
-            }
+              label: {type: 'nominal', field: 'col', lineAnchor: 'start'},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
@@ -782,7 +790,7 @@ describe('Mark', () => {
             padding: null,
             lineAnchor: 'start',
             anchor: ['top-left', 'left', 'bottom-left'],
-            offset: [2, 2, 2]
+            offset: [2, 2, 2],
           });
         });
 
@@ -793,8 +801,8 @@ describe('Mark', () => {
               x: {type: 'nominal', field: 'col1'},
               y: {type: 'quantitative', field: 'col2'},
               color: {type: 'quantitative', field: 'col3'},
-              label: {type: 'nominal', field: 'col', lineAnchor: 'end'}
-            }
+              label: {type: 'nominal', field: 'col', lineAnchor: 'end'},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
@@ -805,18 +813,18 @@ describe('Mark', () => {
             padding: null,
             lineAnchor: 'end',
             anchor: ['top-right', 'right', 'bottom-right'],
-            offset: [2, 2, 2]
+            offset: [2, 2, 2],
           });
         });
       });
 
-      (['circle', 'point', 'square'] as const).forEach(mark => {
+      (['circle', 'point', 'square'] as const).forEach((mark) => {
         it(`should have correct default label-transform config for ${mark}`, () => {
           const model = parseUnitModelWithScale({
             mark,
             encoding: {
-              label: {type: 'nominal', field: 'col'}
-            }
+              label: {type: 'nominal', field: 'col'},
+            },
           });
 
           const label = getLabelMark(model, 'anything');
@@ -824,7 +832,7 @@ describe('Mark', () => {
             type: 'label',
             size: {signal: '[width, height]'},
             anchor: ['top-right', 'top', 'top-left', 'left', 'bottom-left', 'bottom', 'bottom-right', 'middle'],
-            offset: [2, 2, 2, 2, 2, 2, 2, 2, 2]
+            offset: [2, 2, 2, 2, 2, 2, 2, 2, 2],
           });
         });
       });
@@ -833,8 +841,8 @@ describe('Mark', () => {
         const model = parseUnitModelWithScale({
           mark: 'rect',
           encoding: {
-            label: {type: 'nominal', field: 'col'}
-          }
+            label: {type: 'nominal', field: 'col'},
+          },
         });
 
         const label = getLabelMark(model, 'anything');
@@ -842,7 +850,7 @@ describe('Mark', () => {
           type: 'label',
           size: {signal: '[width, height]'},
           anchor: ['middle'],
-          offset: [0]
+          offset: [0],
         });
       });
     });

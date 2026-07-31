@@ -137,21 +137,21 @@ describe('compile/mark/encoding/aria', () => {
       encoding: {
         x: {
           field: 'category',
-          type: 'ordinal'
+          type: 'ordinal',
         },
         description: {
           field: 'category',
-          type: 'ordinal'
-        }
+          type: 'ordinal',
+        },
       },
-      data: {values: []}
+      data: {values: []},
     });
 
     const ariaMixins = aria(model);
 
     expect(ariaMixins).toEqual({
       ariaRoleDescription: {value: 'bar'},
-      description: {signal: 'isValid(datum["category"]) ? datum["category"] : ""+datum["category"]'}
+      description: {signal: 'isValid(datum["category"]) ? datum["category"] : ""+datum["category"]'},
     });
   });
 });

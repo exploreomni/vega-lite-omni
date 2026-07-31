@@ -91,9 +91,9 @@ The release script's drift guard refuses to tag if `omni/main` is anchored on an
 
 Same as the vega-omni README — branch off `upstream/main`, cherry-pick the omni commit, push to `exploreomni/vega-lite-omni`, open PR in GitHub UI to `vega/vega-lite:main`.
 
-## Known: tests that need re-baselining on rebase
+## Known: `test-runtime/animation.test.ts` fails to import
 
-The label mark's tests in `test/compile/mark/mark.test.ts > Mark > getLabel` use snapshot expectations for the `description` signal that was generated against `v6.2.0`. Upstream changed how nominal-value description signals format arrays (now wraps with `isArray() ? join() : ...`), so 7 tests fail on rebase to upstream/main. They aren't real regressions — just stale snapshots. Update the expected strings to match the new upstream signal generator.
+It reads `examples/specs/data/gapminder.json`, which nothing populates — `npm run data` rsyncs vega-datasets into `site/data`. Fails the same way on upstream `v6.4.3`, so it's an upstream bug rather than fork drift. Every other suite passes.
 
 ## Links
 
