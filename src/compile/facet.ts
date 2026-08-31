@@ -1,10 +1,19 @@
-import {AggregateOp, LayoutAlign, NewSignal, SignalRef} from 'vega';
-import {isArray} from 'vega-util';
+import {AggregateOp, LayoutAlign, Legend as VgLegend, NewSignal, SignalRef} from 'vega';
+import {isArray, isObject, isString} from 'vega-util';
 import {isBinning} from '../bin.js';
-import {COLUMN, ExtendedChannel, FacetChannel, FACET_CHANNELS, POSITION_SCALE_CHANNELS, ROW} from '../channel.js';
+import {
+  COLUMN,
+  ExtendedChannel,
+  FacetChannel,
+  FACET_CHANNELS,
+  POSITION_SCALE_CHANNELS,
+  ROW,
+  ScaleChannel,
+} from '../channel.js';
 import {FieldName, FieldRefOption, initFieldDef, TypedFieldDef, vgField} from '../channeldef.js';
 import {Config} from '../config.js';
 import {ExprRef, replaceExprRef} from '../expr.js';
+import {LEGEND_SCALE_CHANNELS} from '../legend.js';
 import * as log from '../log/index.js';
 import {hasDiscreteDomain} from '../scale.js';
 import {DEFAULT_SORT_OP, EncodingSortField, isSortField, SortOrder} from '../sort.js';
@@ -12,7 +21,7 @@ import {NormalizedFacetSpec} from '../spec/index.js';
 import {EncodingFacetMapping, FacetFieldDef, FacetMapping, isFacetMapping} from '../spec/facet.js';
 import {isStep} from '../spec/base.js';
 import {hasProperty, keys, vals} from '../util.js';
-import {isVgRangeStep, VgData, VgLayout, VgMarkGroup} from '../vega.schema.js';
+import {isVgRangeStep, VgData, VgLayout, VgMarkGroup, VgScale} from '../vega.schema.js';
 import {buildModel} from './buildmodel.js';
 import {assembleFacetData} from './data/assemble.js';
 import {sortArrayIndexField} from './data/calculate.js';
@@ -24,6 +33,7 @@ import {parseFacetHeaders} from './header/parse.js';
 import {assembleLayoutSignals} from './layoutsize/assemble.js';
 import {parseChildrenLayoutSize} from './layoutsize/parse.js';
 import {Model, ModelWithField} from './model.js';
+import {defaultScaleResolve} from './resolve.js';
 import {assembleDomain, getFieldFromDomain} from './scale/domain.js';
 import {assembleFacetSignals} from './selection/assemble.js';
 import {isTimerSelection} from './selection/index.js';
@@ -37,12 +47,141 @@ export function facetSortFieldName(
   return vgField(sort, {suffix: `by_${vgField(fieldDef)}`, ...opt});
 }
 
+function legendScaleNames(legend: VgLegend): string[] {
+  return LEGEND_SCALE_CHANNELS.map((prop) => legend[prop]).filter((name): name is string => !!name);
+}
+
+function referencesCellScope(
+  value: unknown,
+  cellDataNames: ReadonlySet<string>,
+  cellSignalTests: readonly RegExp[],
+): boolean {
+  if (isArray(value)) {
+    return value.some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
+  }
+  if (isObject(value)) {
+    const {data, signal} = value as {data?: unknown; signal?: unknown};
+    if (isString(data) && cellDataNames.has(data)) {
+      return true;
+    }
+    if (isString(signal) && cellSignalTests.some((test) => test.test(signal))) {
+      return true;
+    }
+    return vals(value).some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
+  }
+  return false;
+}
+
+/**
+ * Map each scale assembled somewhere in this subtree back to the channel it
+ * encodes. Merged components are skipped: their scales assemble under the name
+ * of the component they merged into, which its owner reports.
+ */
+function collectScaleChannels(model: Model, index: Map<string, ScaleChannel>) {
+  for (const channel of keys(model.component.scales)) {
+    const scaleComponent = model.component.scales[channel];
+    if (!scaleComponent.merged) {
+      index.set(scaleComponent.get('name'), channel);
+    }
+  }
+  for (const child of model.children) {
+    collectScaleChannels(child, index);
+  }
+}
+
+/**
+ * Split out of the cell group the legends for channels the facet resolves as
+ * shared, together with the scales they reference, so the facet's own group can
+ * render them once.
+ *
+ * A facet child that resolves a non-position channel independently (e.g. a layer
+ * with `resolve: {scale: {color: 'independent'}}`) keeps those scales on its
+ * units, so they — and their legends — assemble inside the repeated cell group:
+ * the legend renders once per facet value, laid out inside the cell between the
+ * plot and any hoisted axes. The sibling-level independent resolve says nothing
+ * about sharing across cells; that is the facet's own resolve, and when it says
+ * 'shared' (the default) the legend belongs on the facet's group. The referenced
+ * scales must move with it because a legend cannot reach a scale defined in a
+ * sibling scope, while the cell's marks still resolve the moved scale by walking
+ * up to the enclosing scope.
+ *
+ * The hoist additionally requires each scale to be facet-invariant — nothing in
+ * it may reference a dataset or signal scoped to the cell. A facet-shared scale
+ * assembles that way (explicit domains, or domains reading the shared post-facet
+ * datasets), so this is a safety condition rather than a second policy: moving a
+ * scale with a cell-scoped reference would leave it dangling, which is strictly
+ * worse than the duplicated legend it fixes.
+ */
+function extractFacetSharedLegends(model: FacetModel, cell: VgMarkGroup): {legends: VgLegend[]; scales: VgScale[]} {
+  const cellLegends: VgLegend[] = cell.legends ?? [];
+  const cellScales: VgScale[] = cell.scales ?? [];
+  if (cellLegends.length === 0 || cellScales.length === 0) {
+    return {legends: [], scales: []};
+  }
+
+  const scaleByName = new Map<string, VgScale>(cellScales.map((scale) => [scale.name, scale]));
+  const scaleChannels = new Map<string, ScaleChannel>();
+  collectScaleChannels(model, scaleChannels);
+  const cellDataNames = new Set<string>([
+    ...(cell.data ?? []).map((dataset: VgData) => dataset.name),
+    cell.from.facet.name,
+  ]);
+  const cellSignalTests = ((cell.signals ?? []) as NewSignal[]).map(({name}) => new RegExp(`\\b${name}\\b`));
+
+  // The facet has no scale component of its own on these channels, so its resolve
+  // may never have been defaulted — same fallback as parseUnitScaleDomain.
+  const facetResolvesShared = (channel: ScaleChannel) =>
+    (model.component.resolve.scale[channel] ?? defaultScaleResolve(channel, model)) === 'shared';
+
+  const isHoistable = (legend: VgLegend) => {
+    const scaleNames = legendScaleNames(legend);
+    return (
+      scaleNames.length > 0 &&
+      scaleNames.every((name) => {
+        const channel = scaleChannels.get(name);
+        const scale = scaleByName.get(name);
+        return (
+          channel !== undefined &&
+          facetResolvesShared(channel) &&
+          scale !== undefined &&
+          !referencesCellScope(scale, cellDataNames, cellSignalTests)
+        );
+      })
+    );
+  };
+
+  const legends = cellLegends.filter(isHoistable);
+  if (legends.length === 0) {
+    return {legends: [], scales: []};
+  }
+  const scaleNamesToHoist = new Set(legends.flatMap(legendScaleNames));
+
+  const remainingLegends = cellLegends.filter((legend) => !legends.includes(legend));
+  if (remainingLegends.length > 0) {
+    cell.legends = remainingLegends;
+  } else {
+    delete cell.legends;
+  }
+  const remainingScales = cellScales.filter((scale) => !scaleNamesToHoist.has(scale.name));
+  if (remainingScales.length > 0) {
+    cell.scales = remainingScales;
+  } else {
+    delete cell.scales;
+  }
+
+  return {legends, scales: cellScales.filter((scale) => scaleNamesToHoist.has(scale.name))};
+}
+
 export class FacetModel extends ModelWithField {
   public readonly facet: EncodingFacetMapping<string, SignalRef>;
 
   public readonly child: Model;
 
   public readonly children: Model[];
+
+  private hoistedLegends: VgLegend[] = [];
+
+  private hoistedScales: VgScale[] = [];
 
   constructor(spec: NormalizedFacetSpec, parent: Model, parentGivenName: string, config: Config<SignalRef>) {
     super(spec, 'facet', parent, parentGivenName, config, spec.resolve);
@@ -253,26 +392,36 @@ export class FacetModel extends ModelWithField {
   }
 
   public assembleGroup(signals: NewSignal[]) {
-    if (this.parent && this.parent instanceof FacetModel) {
-      // Provide number of columns for layout.
-      // See discussion in https://github.com/vega/vega/issues/952
-      // and https://github.com/vega/vega-view/releases/tag/v1.2.6
-      return {
-        ...(this.channelHasField('column')
-          ? {
-              encode: {
-                update: {
-                  // TODO(https://github.com/vega/vega-lite/issues/2759):
-                  // Correct the signal for facet of concat of facet_column
-                  columns: {field: vgField(this.facet.column, {prefix: 'distinct'})},
-                },
-              },
-            }
-          : {}),
-        ...super.assembleGroup(signals),
-      };
+    // super.assembleGroup assembles the marks — populating hoistedLegends/hoistedScales
+    // via assembleMarks — before it assembles this group's own scales and legends.
+    const group =
+      this.parent && this.parent instanceof FacetModel
+        ? {
+            // Provide number of columns for layout.
+            // See discussion in https://github.com/vega/vega/issues/952
+            // and https://github.com/vega/vega-view/releases/tag/v1.2.6
+            ...(this.channelHasField('column')
+              ? {
+                  encode: {
+                    update: {
+                      // TODO(https://github.com/vega/vega-lite/issues/2759):
+                      // Correct the signal for facet of concat of facet_column
+                      columns: {field: vgField(this.facet.column, {prefix: 'distinct'})},
+                    },
+                  },
+                }
+              : {}),
+            ...super.assembleGroup(signals),
+          }
+        : super.assembleGroup(signals);
+
+    if (this.hoistedScales.length > 0) {
+      group.scales = [...(group.scales ?? []), ...this.hoistedScales];
     }
-    return super.assembleGroup(signals);
+    if (this.hoistedLegends.length > 0) {
+      group.legends = [...(group.legends ?? []), ...this.hoistedLegends];
+    }
+    return group;
   }
 
   /**
@@ -453,6 +602,10 @@ export class FacetModel extends ModelWithField {
       ...(encodeEntry ? {encode: {update: encodeEntry}} : {}),
       ...child.assembleGroup(assembleFacetSignals(this, [])),
     };
+
+    const {legends, scales} = extractFacetSharedLegends(this, markGroup);
+    this.hoistedLegends = legends;
+    this.hoistedScales = scales;
 
     return [markGroup];
   }
