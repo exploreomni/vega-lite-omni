@@ -343,6 +343,127 @@ describe('FacetModel', () => {
     });
   });
 
+  describe('legend hoisting', () => {
+    const facetedDualColorSpec = (colorDefs: {c?: object; d?: object} = {}) =>
+      ({
+        data: {values: [{a: 'A', b: 1, c: 'u', d: 'w', f: 'x'}]},
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          layer: [
+            {
+              mark: 'line',
+              encoding: {
+                x: {field: 'a', type: 'nominal'},
+                y: {field: 'b', type: 'quantitative'},
+                color: {field: 'c', type: 'nominal', ...colorDefs.c},
+              },
+            },
+            {
+              mark: 'point',
+              encoding: {
+                x: {field: 'a', type: 'nominal'},
+                y: {field: 'b', type: 'quantitative'},
+                color: {field: 'd', type: 'nominal', ...colorDefs.d},
+              },
+            },
+          ],
+          resolve: {scale: {color: 'independent'}},
+        },
+      }) as any;
+
+    it('hoists a child layer’s independent color legends and their scales above the facet', () => {
+      // The independent resolve keeps each color scale on its unit, so both scale and
+      // legend assemble inside the repeated cell group: one legend per facet value,
+      // rendered between the plot and the hoisted axes. With explicit domains the
+      // legend is identical in every cell, so it belongs on the facet's group.
+      const vgSpec = compile(
+        facetedDualColorSpec({
+          c: {scale: {domain: ['u', 'v'], range: ['#111111', '#222222']}},
+          d: {scale: {domain: ['w'], range: ['#333333']}},
+        }),
+      ).spec;
+
+      const legendScaleNames = (vgSpec.legends ?? []).map((legend) => (legend as any).stroke ?? (legend as any).fill);
+      expect(legendScaleNames).toHaveLength(2);
+      expect((vgSpec.scales ?? []).map((scale) => scale.name)).toEqual(expect.arrayContaining(legendScaleNames));
+
+      const cell = (vgSpec.marks ?? []).find((mark) => mark.name === 'cell') as any;
+      expect(cell.legends).toBeUndefined();
+      expect((cell.scales ?? []).map((scale: any) => scale.name)).not.toEqual(expect.arrayContaining(legendScaleNames));
+    });
+
+    it('hoists legends whose scale domains read top-level datasets', () => {
+      // Data-driven domains qualify too: they reference the top-level (pre- or
+      // post-facet) datasets, never the cell's own facet dataset.
+      const vgSpec = compile(facetedDualColorSpec()).spec;
+
+      expect(vgSpec.legends).toHaveLength(2);
+      const cell = (vgSpec.marks ?? []).find((mark) => mark.name === 'cell') as any;
+      expect(cell.legends).toBeUndefined();
+    });
+
+    it('leaves a scale without a legend in the cell', () => {
+      // Only scales a hoisted legend references move up; a legend-less scale (e.g. an
+      // invisible hover-target layer) stays where it assembled.
+      const vgSpec = compile(
+        facetedDualColorSpec({
+          c: {scale: {domain: ['u', 'v'], range: ['#111111', '#222222']}},
+          d: {legend: null},
+        }),
+      ).spec;
+
+      expect(vgSpec.legends).toHaveLength(1);
+      const cell = (vgSpec.marks ?? []).find((mark) => mark.name === 'cell') as any;
+      expect((cell.scales ?? []).map((scale: any) => scale.name)).toHaveLength(1);
+    });
+
+    it('keeps an explicitly facet-independent legend in the cell even when its scale has an explicit domain', () => {
+      // The scale is identical in every cell, but the facet's resolve is the policy:
+      // an explicit 'independent' keeps the legend per cell regardless.
+      const vgSpec = compile({
+        data: {values: [{a: 'A', b: 1, c: 'u', f: 'x'}]},
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          mark: 'line',
+          encoding: {
+            x: {field: 'a', type: 'nominal'},
+            y: {field: 'b', type: 'quantitative'},
+            color: {field: 'c', type: 'nominal', scale: {domain: ['u', 'v'], range: ['#111111', '#222222']}},
+          },
+        },
+        resolve: {scale: {color: 'independent'}},
+      } as any).spec;
+
+      expect(vgSpec.legends).toBeUndefined();
+      const cell = (vgSpec.marks ?? []).find((mark) => mark.name === 'cell') as any;
+      expect(cell.legends).toMatchObject([{stroke: 'child_color'}]);
+      expect(cell.scales).toMatchObject([{name: 'child_color', domain: ['u', 'v']}]);
+    });
+
+    it('keeps the legend in the cell when the facet resolves the scale independently', () => {
+      // A facet-independent scale reads the cell's facet dataset for its domain, so
+      // the legend genuinely differs per cell and must stay inside it.
+      const vgSpec = compile({
+        data: {values: [{a: 'A', b: 1, c: 'u', f: 'x'}]},
+        facet: {column: {field: 'f', type: 'nominal'}},
+        spec: {
+          mark: 'line',
+          encoding: {
+            x: {field: 'a', type: 'nominal'},
+            y: {field: 'b', type: 'quantitative'},
+            color: {field: 'c', type: 'nominal'},
+          },
+        },
+        resolve: {scale: {color: 'independent'}},
+      } as any).spec;
+
+      expect(vgSpec.legends).toBeUndefined();
+      const cell = (vgSpec.marks ?? []).find((mark) => mark.name === 'cell') as any;
+      expect(cell.legends).toMatchObject([{stroke: 'child_color'}]);
+      expect(cell.scales).toMatchObject([{name: 'child_color', domain: {data: 'facet'}}]);
+    });
+  });
+
   describe('assembleGroup', () => {
     it('includes a columns fields in the encode block for facet with column that parent is also a facet.', () => {
       const model = parseFacetModelWithScale({
