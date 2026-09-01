@@ -12,6 +12,8 @@ export declare class FacetModel extends ModelWithField {
     readonly facet: EncodingFacetMapping<string, SignalRef>;
     readonly child: Model;
     readonly children: Model[];
+    private hoistedLegends;
+    private hoistedScales;
     constructor(spec: NormalizedFacetSpec, parent: Model, parentGivenName: string, config: Config<SignalRef>);
     private initFacet;
     private initFacetFieldDef;
