@@ -1,7 +1,16 @@
 import {Signal, SignalRef} from 'vega';
 import {parseSelector} from 'vega-event-selector';
 import {identity, isArray, stringValue} from 'vega-util';
-import {MODIFY, STORE, unitName, VL_SELECTION_RESOLVE, TUPLE, selectionCompilers, isTimerSelection} from './index.js';
+import {
+  MODIFY,
+  STORE,
+  unitName,
+  VL_SELECTION_RESOLVE,
+  TUPLE,
+  selectionCompilers,
+  isTimerSelection,
+  SelectionComponent,
+} from './index.js';
 import {dateTimeToExpr, isDateTime, dateTimeToTimestamp} from '../../datetime.js';
 import {hasContinuousDomain} from '../../scale.js';
 import {SelectionInit, SelectionInitInterval, ParameterExtent, SELECTION_ID} from '../../selection.js';
@@ -9,10 +18,11 @@ import {keys, replacePathInField, stringify, vals} from '../../util.js';
 import {VgData, VgDomain} from '../../vega.schema.js';
 import {FacetModel} from '../facet.js';
 import {LayerModel} from '../layer.js';
-import {isUnitModel, Model} from '../model.js';
+import {isFacetModel, isUnitModel, Model} from '../model.js';
 import {ScaleComponent} from '../scale/component.js';
 import {UnitModel} from '../unit.js';
 import {parseSelectionExtent} from './parse.js';
+import legends from './legends.js';
 import {SelectionProjection} from './project.js';
 import {CURR} from './point.js';
 import {DataSourceType} from '../../data.js';
@@ -41,26 +51,47 @@ export function assembleInit(
   return isExpr ? wrap(stringify(init)) : init;
 }
 
+/**
+ * A legend-bound selection without direct-manipulation events reads only
+ * top-level signals: the clicked legend value and the store. Vega instantiates a
+ * facet cell's signals once per cell, so its modify would insert one tuple per
+ * cell. Its signals assemble at the top level, where they run once.
+ */
+export function isHoistedLegendSelection(model: UnitModel, selCmpt: SelectionComponent): boolean {
+  if (selCmpt.events || !legends.defined(selCmpt)) return false;
+  for (let parent = model.parent; parent; parent = parent.parent) {
+    if (isFacetModel(parent)) return true;
+  }
+  return false;
+}
+
+function assembleSelectionSignals(model: UnitModel, selCmpt: SelectionComponent, signals: Signal[]) {
+  const name = selCmpt.name;
+  let modifyExpr = `${name}${TUPLE}, ${selCmpt.resolve === 'global' ? 'true' : `{unit: ${unitName(model)}}`}`;
+
+  for (const c of selectionCompilers) {
+    if (!c.defined(selCmpt)) continue;
+    if (c.signals) signals = c.signals(model, selCmpt, signals);
+    if (c.modifyExpr) modifyExpr = c.modifyExpr(model, selCmpt, modifyExpr);
+  }
+
+  signals.push({
+    name: name + MODIFY,
+    on: [
+      {
+        events: {signal: selCmpt.name + TUPLE},
+        update: `modify(${stringValue(selCmpt.name + STORE)}, ${modifyExpr})`,
+      },
+    ],
+  });
+
+  return signals;
+}
+
 export function assembleUnitSelectionSignals(model: UnitModel, signals: Signal[]) {
   for (const selCmpt of vals(model.component.selection ?? {})) {
-    const name = selCmpt.name;
-    let modifyExpr = `${name}${TUPLE}, ${selCmpt.resolve === 'global' ? 'true' : `{unit: ${unitName(model)}}`}`;
-
-    for (const c of selectionCompilers) {
-      if (!c.defined(selCmpt)) continue;
-      if (c.signals) signals = c.signals(model, selCmpt, signals);
-      if (c.modifyExpr) modifyExpr = c.modifyExpr(model, selCmpt, modifyExpr);
-    }
-
-    signals.push({
-      name: name + MODIFY,
-      on: [
-        {
-          events: {signal: selCmpt.name + TUPLE},
-          update: `modify(${stringValue(selCmpt.name + STORE)}, ${modifyExpr})`,
-        },
-      ],
-    });
+    if (isHoistedLegendSelection(model, selCmpt)) continue;
+    signals = assembleSelectionSignals(model, selCmpt, signals);
   }
 
   return cleanupEmptyOnArray(signals);
@@ -104,6 +135,10 @@ export function assembleTopLevelSignals(model: UnitModel, signals: Signal[]) {
       if (c.defined(selCmpt) && c.topLevelSignals) {
         signals = c.topLevelSignals(model, selCmpt, signals);
       }
+    }
+
+    if (isHoistedLegendSelection(model, selCmpt) && !signals.some((s) => s.name === name + TUPLE)) {
+      signals = assembleSelectionSignals(model, selCmpt, signals);
     }
   }
 
