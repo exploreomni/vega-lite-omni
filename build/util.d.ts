@@ -61,6 +61,10 @@ export type Flag<S extends string> = {
 };
 export declare function isBoolean(b: any): b is boolean;
 /**
+ * Returns true if the value is a primitive type.
+ */
+export declare function isPrimitive(v: any): v is string | number | boolean;
+/**
  * Convert a string into a valid variable name
  */
 export declare function varName(s: string): string;
@@ -96,6 +100,7 @@ export declare function flatAccessWithDatum(path: string, datum?: 'datum' | 'par
  * but this function is for the unescaped field/path)
  */
 export declare function accessWithDatumToUnescapedPath(unescapedPath: string): string;
+export declare function unescapeSingleQuoteAndPathDot(escapedPath: string): string;
 /**
  * Replaces path accesses with access to non-nested field.
  * For example, `foo["bar"].baz` becomes `foo\\.bar\\.baz`.
