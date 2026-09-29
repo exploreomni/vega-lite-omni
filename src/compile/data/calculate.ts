@@ -2,7 +2,7 @@ import {FormulaTransform as VgFormulaTransform} from 'vega';
 import {SingleDefChannel} from '../../channel.js';
 import {FieldRefOption, isScaleFieldDef, TypedFieldDef, vgField} from '../../channeldef.js';
 import {DateTime} from '../../datetime.js';
-import {fieldFilterExpression} from '../../predicate.js';
+import {fieldIndexOfExpression} from '../../predicate.js';
 import {isSortArray} from '../../sort.js';
 import {CalculateTransform} from '../../transform.js';
 import {duplicate, hash} from '../../util.js';
@@ -35,13 +35,11 @@ export class CalculateNode extends DataFlowNode {
       if (isSortArray(fieldDef.sort)) {
         const {field, timeUnit} = fieldDef;
         const sort: (number | string | boolean | DateTime)[] = fieldDef.sort;
-        // generate `datum["a"] === val0 ? 0 : datum["a"] === val1 ? 1 : ... : n` via FieldEqualPredicate
-        const calculate =
-          sort
-            .map((sortValue, i) => {
-              return `${fieldFilterExpression({field, timeUnit, equal: sortValue})} ? ${i} : `;
-            })
-            .join('') + sort.length;
+        // A flat indexof rather than a ternary per value: vega compiles the
+        // formula with Function(), whose parser overflows the stack on
+        // hundreds of nested ternaries.
+        const index = fieldIndexOfExpression({field, timeUnit}, sort);
+        const calculate = `${index} === -1 ? ${sort.length} : ${index}`;
 
         parent = new CalculateNode(parent, {
           calculate,
