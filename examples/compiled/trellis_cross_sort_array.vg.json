@@ -37,12 +37,12 @@
         },
         {
           "type": "formula",
-          "expr": "datum[\"a\"]===\"B\" ? 0 : datum[\"a\"]===\"C\" ? 1 : datum[\"a\"]===\"A\" ? 2 : 3",
+          "expr": "(indexof([\"B\",\"C\",\"A\"], datum[\"a\"]) + 1 || 4) - 1",
           "as": "column_a_sort_index"
         },
         {
           "type": "formula",
-          "expr": "datum[\"b\"]===\"Y\" ? 0 : datum[\"b\"]===\"X\" ? 1 : datum[\"b\"]===\"Z\" ? 2 : 3",
+          "expr": "(indexof([\"Y\",\"X\",\"Z\"], datum[\"b\"]) + 1 || 4) - 1",
           "as": "row_b_sort_index"
         }
       ]

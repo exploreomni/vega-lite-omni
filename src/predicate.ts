@@ -215,9 +215,6 @@ function predicateFieldExpr(predicate: FieldPredicateBase) {
   return {fieldExpr, unit};
 }
 
-/**
- * The index of the field's value in `values`, or -1.
- */
 export function fieldIndexOfExpression(
   predicate: FieldPredicateBase,
   values: (number | string | boolean | DateTime)[],
@@ -245,7 +242,7 @@ export function fieldFilterExpression(predicate: FieldPredicate, useInRange = tr
     const lower = predicate.gte;
     return `${fieldExpr}>=${predicateValueExpr(lower, unit)}`;
   } else if (isFieldOneOfPredicate(predicate)) {
-    return `${fieldIndexOfExpression(predicate, predicate.oneOf)} !== -1`;
+    return `indexof([${predicateValuesExpr(predicate.oneOf, unit).join(',')}], ${fieldExpr}) !== -1`;
   } else if (isFieldValidPredicate(predicate)) {
     return fieldValidPredicate(fieldExpr, predicate.valid);
   } else if (isFieldRangePredicate(predicate)) {

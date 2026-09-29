@@ -37,9 +37,9 @@ export class CalculateNode extends DataFlowNode {
         const sort: (number | string | boolean | DateTime)[] = fieldDef.sort;
         // A flat indexof rather than a ternary per value: vega compiles the
         // formula with Function(), whose parser overflows the stack on
-        // hundreds of nested ternaries.
+        // hundreds of nested ternaries. `+ 1 || n + 1` maps a miss (-1) to n.
         const index = fieldIndexOfExpression({field, timeUnit}, sort);
-        const calculate = `${index} === -1 ? ${sort.length} : ${index}`;
+        const calculate = `(${index} + 1 || ${sort.length + 1}) - 1`;
 
         parent = new CalculateNode(parent, {
           calculate,
