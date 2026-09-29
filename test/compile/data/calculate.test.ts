@@ -1,3 +1,4 @@
+import {parse, View} from 'vega';
 import {CalculateNode} from '../../../src/compile/data/calculate.js';
 import {ModelWithField} from '../../../src/compile/model.js';
 import {parseUnitModel} from '../../util.js';
@@ -28,9 +29,27 @@ describe('compile/data/calculate', () => {
       const nodes = assembleFromSortArray(model);
       expect(nodes).toEqual({
         type: 'formula',
-        expr: 'datum["a"]==="B" ? 0 : datum["a"]==="A" ? 1 : datum["a"]==="C" ? 2 : 3',
+        expr: 'indexof(["B","A","C"], datum["a"]) === -1 ? 3 : indexof(["B","A","C"], datum["a"])',
         as: 'x_a_sort_index',
       });
+    });
+
+    it('produces a formula vega can run for a sort array with thousands of values', async () => {
+      const sort = Array.from({length: 5000}, (_, i) => `v${i}`);
+      const model = parseUnitModel({
+        mark: 'bar',
+        encoding: {
+          x: {field: 'a', type: 'nominal', sort},
+          y: {field: 'b', type: 'quantitative'},
+        },
+      });
+      const formula = assembleFromSortArray(model);
+      const view = new View(
+        parse({data: [{name: 'table', values: [{a: 'v4999'}, {a: 'missing'}], transform: [formula]}]}),
+      );
+      await view.runAsync();
+
+      expect(view.data('table').map((d) => d.x_a_sort_index)).toEqual([4999, 5000]);
     });
   });
 
@@ -64,7 +83,7 @@ describe('compile/data/calculate', () => {
       });
       const node = CalculateNode.parseAllForSortIndex(null, model) as CalculateNode;
       expect(node.hash()).toBe(
-        'Calculate {"as":"x_a_sort_index","calculate":"datum[\\"a\\"]===\\"B\\" ? 0 : datum[\\"a\\"]===\\"A\\" ? 1 : datum[\\"a\\"]===\\"C\\" ? 2 : 3"}',
+        'Calculate {"as":"x_a_sort_index","calculate":"indexof([\\"B\\",\\"A\\",\\"C\\"], datum[\\"a\\"]) === -1 ? 3 : indexof([\\"B\\",\\"A\\",\\"C\\"], datum[\\"a\\"])"}',
       );
     });
   });

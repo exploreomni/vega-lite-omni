@@ -218,12 +218,7 @@ function predicateValuesExpr(vals: (number | string | boolean | DateTime)[], tim
   return vals.map((v) => predicateValueExpr(v, timeUnit));
 }
 
-// This method is used by Voyager. Do not change its default behavior without changing Voyager.
-export function fieldFilterExpression(
-  predicate: FieldPredicate,
-  useInRange = true,
-  expr: 'datum' | 'datum.datum' = 'datum',
-) {
+function predicateFieldExpr(predicate: FieldPredicateBase, expr: 'datum' | 'datum.datum' = 'datum') {
   const {field} = predicate;
   const normalizedTimeUnit = normalizeTimeUnit(predicate.timeUnit);
   const {unit, binned} = normalizedTimeUnit || {};
@@ -234,6 +229,27 @@ export function fieldFilterExpression(
       // TODO: support utc
       `time(${!binned ? timeUnitFieldExpr(unit, field, {expr}) : rawFieldExpr})`
     : rawFieldExpr;
+  return {fieldExpr, unit};
+}
+
+/**
+ * The index of the field's value in `values`, or -1.
+ */
+export function fieldIndexOfExpression(
+  predicate: FieldPredicateBase,
+  values: (number | string | boolean | DateTime)[],
+) {
+  const {fieldExpr, unit} = predicateFieldExpr(predicate);
+  return `indexof([${predicateValuesExpr(values, unit).join(',')}], ${fieldExpr})`;
+}
+
+// This method is used by Voyager. Do not change its default behavior without changing Voyager.
+export function fieldFilterExpression(
+  predicate: FieldPredicate,
+  useInRange = true,
+  expr: 'datum' | 'datum.datum' = 'datum',
+) {
+  const {fieldExpr, unit} = predicateFieldExpr(predicate, expr);
 
   if (isFieldEqualPredicate(predicate)) {
     return `${fieldExpr}===${predicateValueExpr(predicate.equal, unit)}`;
@@ -250,7 +266,7 @@ export function fieldFilterExpression(
     const lower = predicate.gte;
     return `${fieldExpr}>=${predicateValueExpr(lower, unit)}`;
   } else if (isFieldOneOfPredicate(predicate)) {
-    return `indexof([${predicateValuesExpr(predicate.oneOf, unit).join(',')}], ${fieldExpr}) !== -1`;
+    return `${fieldIndexOfExpression(predicate, predicate.oneOf)} !== -1`;
   } else if (isFieldValidPredicate(predicate)) {
     return fieldValidPredicate(fieldExpr, predicate.valid);
   } else if (isFieldRangePredicate(predicate)) {

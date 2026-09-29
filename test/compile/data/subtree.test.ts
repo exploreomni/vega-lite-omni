@@ -46,7 +46,8 @@ describe('compile/data/subtree', () => {
       expect(source.transform).toEqual([
         {
           type: 'formula',
-          expr: 'datum["Origin"]==="Japan" ? 0 : datum["Origin"]==="Europe" ? 1 : datum["Origin"]==="USA" ? 2 : 3',
+          expr:
+            'indexof(["Japan","Europe","USA"], datum["Origin"]) === -1 ? 3 : indexof(["Japan","Europe","USA"], datum["Origin"])',
           as: 'row_Origin_sort_index',
         },
         {
