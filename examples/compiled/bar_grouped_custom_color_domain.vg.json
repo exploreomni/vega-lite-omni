@@ -25,7 +25,7 @@
       "transform": [
         {
           "type": "formula",
-          "expr": "datum[\"group\"]===\"y\" ? 0 : datum[\"group\"]===\"x\" ? 1 : datum[\"group\"]===\"z\" ? 2 : 3",
+          "expr": "(indexof([\"y\",\"x\",\"z\"], datum[\"group\"]) + 1 || 4) - 1",
           "as": "xOffset_group_sort_index"
         }
       ]

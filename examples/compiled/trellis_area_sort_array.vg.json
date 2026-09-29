@@ -12,7 +12,7 @@
         {"type": "filter", "expr": "datum.symbol !== 'GOOG'"},
         {
           "type": "formula",
-          "expr": "datum[\"symbol\"]===\"MSFT\" ? 0 : datum[\"symbol\"]===\"AAPL\" ? 1 : datum[\"symbol\"]===\"IBM\" ? 2 : datum[\"symbol\"]===\"AMZN\" ? 3 : 4",
+          "expr": "(indexof([\"MSFT\",\"AAPL\",\"IBM\",\"AMZN\"], datum[\"symbol\"]) + 1 || 5) - 1",
           "as": "row_symbol_sort_index"
         },
         {
