@@ -90,6 +90,7 @@ export interface FieldValidPredicate extends FieldPredicateBase {
 export declare function isFieldOneOfPredicate(predicate: any): predicate is FieldOneOfPredicate;
 export declare function isFieldValidPredicate(predicate: any): predicate is FieldValidPredicate;
 export declare function isFieldPredicate(predicate: Predicate): predicate is FieldOneOfPredicate | FieldEqualPredicate | FieldRangePredicate | FieldLTPredicate | FieldGTPredicate | FieldLTEPredicate | FieldGTEPredicate;
+export declare function fieldIndexOfExpression(predicate: FieldPredicateBase, values: (number | string | boolean | DateTime)[]): string;
 export declare function fieldFilterExpression(predicate: FieldPredicate, useInRange?: boolean): string;
 export declare function fieldValidPredicate(fieldExpr: string, valid?: boolean): string;
 export declare function normalizePredicate(f: Predicate): Predicate;

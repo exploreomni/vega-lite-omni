@@ -2257,8 +2257,7 @@ function predicateValueExpr(v, timeUnit) {
 function predicateValuesExpr(vals, timeUnit) {
     return vals.map((v) => predicateValueExpr(v, timeUnit));
 }
-// This method is used by Voyager. Do not change its behavior without changing Voyager.
-function fieldFilterExpression(predicate, useInRange = true) {
+function predicateFieldExpr(predicate) {
     const { field } = predicate;
     const normalizedTimeUnit = normalizeTimeUnit(predicate.timeUnit);
     const { unit, binned } = normalizedTimeUnit || {};
@@ -2269,44 +2268,53 @@ function fieldFilterExpression(predicate, useInRange = true) {
             // TODO: support utc
             `time(${!binned ? fieldExpr(unit, field) : rawFieldExpr})`
         : rawFieldExpr;
+    return { fieldExpr: fieldExpr$1, unit };
+}
+function fieldIndexOfExpression(predicate, values) {
+    const { fieldExpr, unit } = predicateFieldExpr(predicate);
+    return `indexof([${predicateValuesExpr(values, unit).join(',')}], ${fieldExpr})`;
+}
+// This method is used by Voyager. Do not change its behavior without changing Voyager.
+function fieldFilterExpression(predicate, useInRange = true) {
+    const { fieldExpr, unit } = predicateFieldExpr(predicate);
     if (isFieldEqualPredicate(predicate)) {
-        return `${fieldExpr$1}===${predicateValueExpr(predicate.equal, unit)}`;
+        return `${fieldExpr}===${predicateValueExpr(predicate.equal, unit)}`;
     }
     else if (isFieldLTPredicate(predicate)) {
         const upper = predicate.lt;
-        return `${fieldExpr$1}<${predicateValueExpr(upper, unit)}`;
+        return `${fieldExpr}<${predicateValueExpr(upper, unit)}`;
     }
     else if (isFieldGTPredicate(predicate)) {
         const lower = predicate.gt;
-        return `${fieldExpr$1}>${predicateValueExpr(lower, unit)}`;
+        return `${fieldExpr}>${predicateValueExpr(lower, unit)}`;
     }
     else if (isFieldLTEPredicate(predicate)) {
         const upper = predicate.lte;
-        return `${fieldExpr$1}<=${predicateValueExpr(upper, unit)}`;
+        return `${fieldExpr}<=${predicateValueExpr(upper, unit)}`;
     }
     else if (isFieldGTEPredicate(predicate)) {
         const lower = predicate.gte;
-        return `${fieldExpr$1}>=${predicateValueExpr(lower, unit)}`;
+        return `${fieldExpr}>=${predicateValueExpr(lower, unit)}`;
     }
     else if (isFieldOneOfPredicate(predicate)) {
-        return `indexof([${predicateValuesExpr(predicate.oneOf, unit).join(',')}], ${fieldExpr$1}) !== -1`;
+        return `indexof([${predicateValuesExpr(predicate.oneOf, unit).join(',')}], ${fieldExpr}) !== -1`;
     }
     else if (isFieldValidPredicate(predicate)) {
-        return fieldValidPredicate(fieldExpr$1, predicate.valid);
+        return fieldValidPredicate(fieldExpr, predicate.valid);
     }
     else if (isFieldRangePredicate(predicate)) {
         const { range } = replaceExprRef(predicate);
         const lower = isSignalRef(range) ? { signal: `${range.signal}[0]` } : range[0];
         const upper = isSignalRef(range) ? { signal: `${range.signal}[1]` } : range[1];
         if (lower !== null && upper !== null && useInRange) {
-            return `inrange(${fieldExpr$1}, [${predicateValueExpr(lower, unit)}, ${predicateValueExpr(upper, unit)}])`;
+            return `inrange(${fieldExpr}, [${predicateValueExpr(lower, unit)}, ${predicateValueExpr(upper, unit)}])`;
         }
         const exprs = [];
         if (lower !== null) {
-            exprs.push(`${fieldExpr$1} >= ${predicateValueExpr(lower, unit)}`);
+            exprs.push(`${fieldExpr} >= ${predicateValueExpr(lower, unit)}`);
         }
         if (upper !== null) {
-            exprs.push(`${fieldExpr$1} <= ${predicateValueExpr(upper, unit)}`);
+            exprs.push(`${fieldExpr} <= ${predicateValueExpr(upper, unit)}`);
         }
         return exprs.length > 0 ? exprs.join(' && ') : 'true';
     }
@@ -11496,12 +11504,11 @@ class CalculateNode extends DataFlowNode {
             if (isSortArray(fieldDef.sort)) {
                 const { field, timeUnit } = fieldDef;
                 const sort = fieldDef.sort;
-                // generate `datum["a"] === val0 ? 0 : datum["a"] === val1 ? 1 : ... : n` via FieldEqualPredicate
-                const calculate = sort
-                    .map((sortValue, i) => {
-                    return `${fieldFilterExpression({ field, timeUnit, equal: sortValue })} ? ${i} : `;
-                })
-                    .join('') + sort.length;
+                // A flat indexof rather than a ternary per value: vega compiles the
+                // formula with Function(), whose parser overflows the stack on
+                // hundreds of nested ternaries. `+ 1 || n + 1` maps a miss (-1) to n.
+                const index = fieldIndexOfExpression({ field, timeUnit }, sort);
+                const calculate = `(${index} + 1 || ${sort.length + 1}) - 1`;
                 parent = new CalculateNode(parent, {
                     calculate,
                     as: sortArrayIndexField(fieldDef, channel, { forAs: true }),
