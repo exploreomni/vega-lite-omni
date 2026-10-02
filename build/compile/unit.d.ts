@@ -48,6 +48,11 @@ export declare class UnitModel extends ModelWithField {
     private initAxes;
     private initAxis;
     private initLegends;
+    /**
+     * If this unit lacks order encoding but does contain a color domain
+     * add transform and encoding that aligns the stack order with the color domain.
+     */
+    private alignStackOrderWithColorDomain;
     parseData(): void;
     parseLayoutSize(): void;
     parseSelections(): void;

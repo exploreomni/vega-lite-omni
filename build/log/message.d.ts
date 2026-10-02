@@ -98,6 +98,7 @@ export declare const MORE_THAN_ONE_SORT = "Domains that should be unioned has co
 export declare const FACETED_INDEPENDENT_DIFFERENT_SOURCES = "Detected faceted independent scales that union domain of multiple fields from different data sources. We will use the first field. The result view size may be incorrect.";
 export declare const FACETED_INDEPENDENT_SAME_FIELDS_DIFFERENT_SOURCES = "Detected faceted independent scales that union domain of the same fields from different source. We will assume that this is the same field from a different fork of the same data source. However, if this is not the case, the result view size may be incorrect.";
 export declare const FACETED_INDEPENDENT_SAME_SOURCE = "Detected faceted independent scales that union domain of multiple fields from the same data source. We will use the first field. The result view size may be incorrect.";
+export declare function legendValuesUnioned(channelA: Channel | ScaleChannel, channelB: Channel | ScaleChannel): string;
 export declare const INVALID_CHANNEL_FOR_AXIS = "Invalid channel for axis.";
 export declare function cannotStackRangedMark(channel: Channel): string;
 export declare function stackNonLinearScale(scaleType: ScaleType): string;

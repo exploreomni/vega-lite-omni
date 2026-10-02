@@ -1,4 +1,5 @@
 import { Signal, SignalRef } from 'vega';
+import { SelectionComponent } from './index.js';
 import { SelectionInit, SelectionInitInterval, ParameterExtent } from '../../selection.js';
 import { VgData, VgDomain } from '../../vega.schema.js';
 import { FacetModel } from '../facet.js';
@@ -14,6 +15,13 @@ export declare function assembleProjection(proj: SelectionProjection): {
     geoChannel?: import("../../channel.js").GeoPositionChannel;
 };
 export declare function assembleInit(init: readonly (SelectionInit | readonly SelectionInit[] | SelectionInitInterval)[] | SelectionInit, isExpr?: boolean, wrap?: (str: string | number) => string | number): any;
+/**
+ * A legend-bound selection without direct-manipulation events reads only
+ * top-level signals: the clicked legend value and the store. Vega instantiates a
+ * facet cell's signals once per cell, so its modify would insert one tuple per
+ * cell. Its signals assemble at the top level, where they run once.
+ */
+export declare function isHoistedLegendSelection(model: UnitModel, selCmpt: SelectionComponent): boolean;
 export declare function assembleUnitSelectionSignals(model: UnitModel, signals: Signal[]): Signal[];
 export declare function assembleFacetSignals(model: FacetModel, signals: Signal[]): Signal[];
 export declare function assembleTopLevelSignals(model: UnitModel, signals: Signal[]): Signal[];
