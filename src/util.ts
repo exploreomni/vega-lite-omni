@@ -328,7 +328,7 @@ export function unescapeSingleQuoteAndPathDot(escapedPath: string) {
   return escapedPath.replaceAll("\\'", "'").replaceAll('\\.', '.');
 }
 
-function escapePathAccess(string: string) {
+export function escapePathAccess(string: string) {
   return string.replace(/(\[|\]|\.|'|")/g, '\\$1');
 }
 
