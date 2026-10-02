@@ -428,6 +428,28 @@ describe('encoding', () => {
       expect(output.aggregate).toEqual([{op: 'mean', field: 'a\\.b', as: 'mean_a.b'}]);
       expect(output.encoding.x).toMatchObject({field: 'mean_a\\.b'});
     });
+    it("references a dotted argmax field's output by its escaped name", () => {
+      const output = extractTransformsFromEncoding(
+        {
+          x: {aggregate: {argmax: 'a\\.b'}, field: 'c', type: 'quantitative'},
+          y: {field: 'd', type: 'nominal'},
+        },
+        defaultConfig,
+      );
+      expect(output.aggregate).toEqual([{op: 'argmax', field: 'c', as: 'argmax_a.b'}]);
+      expect(output.encoding.x).toMatchObject({field: 'argmax_a\\.b.c'});
+    });
+    it("references a dotted argmin field's output by its escaped name", () => {
+      const output = extractTransformsFromEncoding(
+        {
+          x: {aggregate: {argmin: 'a\\.b'}, field: 'c', type: 'quantitative'},
+          y: {field: 'd', type: 'nominal'},
+        },
+        defaultConfig,
+      );
+      expect(output.aggregate).toEqual([{op: 'argmin', field: 'c', as: 'argmin_a.b'}]);
+      expect(output.encoding.x).toMatchObject({field: 'argmin_a\\.b.c'});
+    });
   });
 
   describe('markChannelCompatible', () => {
