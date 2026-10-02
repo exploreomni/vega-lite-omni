@@ -1167,6 +1167,29 @@ describe('normalizeBoxIQR', () => {
     });
   });
 
+  it("groups a boxplot by a dotted field's timeUnit output, referenced by its escaped name", () => {
+    const normalizedSpec = normalize(
+      {
+        data: {values: []},
+        mark: 'boxplot',
+        encoding: {
+          x: {field: 'users\\.created_at\\[date\\]', type: 'nominal', timeUnit: 'utcyearmonthdate'},
+          y: {field: 'order_items\\.sale_price', type: 'quantitative'},
+        },
+      },
+      defaultConfig,
+    );
+
+    const boxPart = (normalizedSpec as any).layer[1];
+    expect(boxPart.transform[0]).toEqual({
+      timeUnit: {unit: 'yearmonthdate', utc: true},
+      field: 'users\\.created_at\\[date\\]',
+      as: 'utcyearmonthdate_users.created_at[date]',
+    });
+    expect(boxPart.transform[1].groupby).toEqual(['utcyearmonthdate_users\\.created_at\\[date\\]']);
+    expect(boxPart.layer[0].encoding.x.field).toBe('utcyearmonthdate_users\\.created_at\\[date\\]');
+  });
+
   it('should produce correct y axis title when mark.extent is not explicitly set', () => {
     const normalizedSpec = normalize(
       {

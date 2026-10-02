@@ -97,7 +97,7 @@ import {Mark} from './mark.js';
 import {EncodingFacetMapping} from './spec/facet.js';
 import {AggregatedFieldDef, BinTransform, TimeUnitTransform} from './transform.js';
 import {isContinuous, isDiscrete, QUANTITATIVE, TEMPORAL} from './type.js';
-import {keys, some} from './util.js';
+import {escapePathAccess, keys, some} from './util.js';
 import {isSignalRef} from './vega.schema.js';
 import {isBinnedTimeUnit} from './timeunit.js';
 
@@ -419,13 +419,15 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<any>, config
       if (aggOp || timeUnit || bin) {
         const guide = getGuide(channelDef);
         const isTitleDefined = guide?.title;
+        // `newField` is the literal output name used as `as`, but `field` and `groupby` are field
+        // references, so a dotted or bracketed name must be escaped there. They differ only for such names.
         let newField = vgField(channelDef, {forAs: true});
         const newFieldDef: FieldDef<string> = {
           // Only add title if it doesn't exist
           ...(isTitleDefined ? [] : {title: title(channelDef, config, {allowDisabling: true})}),
           ...remaining,
           // Always overwrite field
-          field: newField,
+          field: escapePathAccess(newField),
         };
 
         if (aggOp) {
@@ -434,11 +436,11 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<any>, config
           if (isArgmaxDef(aggOp)) {
             op = 'argmax';
             newField = vgField({op: 'argmax', field: aggOp.argmax}, {forAs: true});
-            newFieldDef.field = `${newField}.${field}`;
+            newFieldDef.field = `${escapePathAccess(newField)}.${field}`;
           } else if (isArgminDef(aggOp)) {
             op = 'argmin';
             newField = vgField({op: 'argmin', field: aggOp.argmin}, {forAs: true});
-            newFieldDef.field = `${newField}.${field}`;
+            newFieldDef.field = `${escapePathAccess(newField)}.${field}`;
           } else if (aggOp !== 'boxplot' && aggOp !== 'errorbar' && aggOp !== 'errorband') {
             op = aggOp;
           }
@@ -454,7 +456,7 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<any>, config
             aggregate.push(aggregateEntry);
           }
         } else {
-          groupby.push(newField);
+          groupby.push(escapePathAccess(newField));
           if (isTypedFieldDef(channelDef) && isBinning(bin)) {
             bins.push({bin, field, as: newField});
             // Add additional groupbys for range and end of bins
@@ -465,7 +467,7 @@ export function extractTransformsFromEncoding(oldEncoding: Encoding<any>, config
             // Create accompanying 'x2' or 'y2' field if channel is 'x' or 'y' respectively
             if (isXorY(channel)) {
               const secondaryChannel: SecondaryFieldDef<string> = {
-                field: `${newField}_end`,
+                field: escapePathAccess(`${newField}_end`),
               };
               encoding[`${channel}2`] = secondaryChannel;
             }

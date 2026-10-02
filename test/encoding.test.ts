@@ -381,6 +381,53 @@ describe('encoding', () => {
         },
       });
     });
+    it("references a dotted field's timeUnit output by its escaped name", () => {
+      const output = extractTransformsFromEncoding(
+        initEncoding(
+          {
+            x: {timeUnit: 'utcyearmonthdate', field: 'users\\.created_at\\[date\\]', type: 'nominal'},
+            y: {field: 'order_items\\.sale_price', type: 'quantitative'},
+          },
+          'point',
+          false,
+          defaultConfig,
+        ),
+        defaultConfig,
+      );
+      expect(output.timeUnits).toEqual([
+        {
+          timeUnit: {unit: 'yearmonthdate', utc: true},
+          field: 'users\\.created_at\\[date\\]',
+          as: 'utcyearmonthdate_users.created_at[date]',
+        },
+      ]);
+      expect(output.groupby).toEqual(['utcyearmonthdate_users\\.created_at\\[date\\]', 'order_items\\.sale_price']);
+      expect(output.encoding.x).toMatchObject({field: 'utcyearmonthdate_users\\.created_at\\[date\\]'});
+    });
+    it("references a dotted field's bin output and bin end by their escaped names", () => {
+      const output = extractTransformsFromEncoding(
+        {
+          x: {bin: true, field: 'a\\.b', type: 'quantitative'},
+          y: {field: 'c', type: 'quantitative'},
+        },
+        defaultConfig,
+      );
+      expect(output.bins).toEqual([{bin: true, field: 'a\\.b', as: 'bin_maxbins_10_a.b'}]);
+      expect(output.groupby).toEqual(['bin_maxbins_10_a\\.b', 'bin_maxbins_10_a\\.b_end', 'c']);
+      expect(output.encoding.x).toMatchObject({field: 'bin_maxbins_10_a\\.b'});
+      expect(output.encoding.x2).toEqual({field: 'bin_maxbins_10_a\\.b_end'});
+    });
+    it("references a dotted field's aggregate output by its escaped name", () => {
+      const output = extractTransformsFromEncoding(
+        {
+          x: {aggregate: 'mean', field: 'a\\.b', type: 'quantitative'},
+          y: {field: 'c', type: 'nominal'},
+        },
+        defaultConfig,
+      );
+      expect(output.aggregate).toEqual([{op: 'mean', field: 'a\\.b', as: 'mean_a.b'}]);
+      expect(output.encoding.x).toMatchObject({field: 'mean_a\\.b'});
+    });
   });
 
   describe('markChannelCompatible', () => {
