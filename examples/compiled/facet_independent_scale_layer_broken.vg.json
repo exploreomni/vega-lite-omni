@@ -131,7 +131,7 @@
       "data": [
         {
           "source": "facet",
-          "name": "data_0",
+          "name": "facet_data_0",
           "transform": [
             {
               "type": "aggregate",
@@ -143,8 +143,8 @@
           ]
         },
         {
-          "name": "data_1",
-          "source": "data_0",
+          "name": "facet_data_1",
+          "source": "facet_data_0",
           "transform": [
             {
               "type": "filter",
@@ -168,7 +168,7 @@
           "from": {
             "facet": {
               "name": "faceted_path_child_layer_0_main",
-              "data": "data_0",
+              "data": "facet_data_0",
               "groupby": ["gender"]
             }
           },
@@ -205,7 +205,7 @@
           "name": "child_layer_1_marks",
           "type": "symbol",
           "style": ["point"],
-          "from": {"data": "data_1"},
+          "from": {"data": "facet_data_1"},
           "encode": {
             "update": {
               "fill": {"value": "transparent"},
@@ -226,8 +226,8 @@
           "type": "point",
           "domain": {
             "fields": [
-              {"data": "data_0", "field": "age"},
-              {"data": "data_1", "field": "age"}
+              {"data": "facet_data_0", "field": "age"},
+              {"data": "facet_data_1", "field": "age"}
             ],
             "sort": true
           },
