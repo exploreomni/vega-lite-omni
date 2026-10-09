@@ -1,9 +1,9 @@
 {
-  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
   "background": "white",
   "padding": 5,
-  "width": 200,
-  "height": 200,
+  "width": 300,
+  "height": 300,
   "style": "cell",
   "data": [
     {
@@ -34,7 +34,7 @@
         "update": {
           "stroke": {"value": "#4c78a8"},
           "description": {
-            "signal": "\"date: \" + (timeFormat(datum[\"date\"], '%b %d, %Y')) + \"; price: \" + (format(datum[\"price\"], \"\"))"
+            "signal": "\"date: \" + (timeFormat(datum[\"date\"], \"%b %d, %Y\")) + \"; price: \" + (format(datum[\"price\"], \"\"))"
           },
           "x": {"scale": "x", "field": "date"},
           "y": {"scale": "y", "field": "price"},
@@ -55,7 +55,7 @@
           "fill": {"value": "#4c78a8"},
           "ariaRoleDescription": {"value": "point"},
           "description": {
-            "signal": "\"date: \" + (timeFormat(datum[\"date\"], '%b %d, %Y')) + \"; price: \" + (format(datum[\"price\"], \"\"))"
+            "signal": "\"date: \" + (timeFormat(datum[\"date\"], \"%b %d, %Y\")) + \"; price: \" + (format(datum[\"price\"], \"\"))"
           },
           "x": {"scale": "x", "field": "date"},
           "y": {"scale": "y", "field": "price"}
@@ -71,7 +71,7 @@
         "update": {
           "fill": {"value": "black"},
           "description": {
-            "signal": "\"price: \" + (isValid(datum[\"price\"]) ? datum[\"price\"] : \"\"+datum[\"price\"])"
+            "signal": "\"price: \" + (isValid(datum[\"price\"]) ? isArray(datum[\"price\"]) ? join(datum[\"price\"], ' ') : datum[\"price\"] : \"\"+datum[\"price\"])"
           },
           "text": {
             "signal": "isValid(datum.datum[\"price\"]) ? datum.datum[\"price\"] : \"\"+datum.datum[\"price\"]"

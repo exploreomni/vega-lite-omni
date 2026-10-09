@@ -27,6 +27,11 @@
           "expr": "isValid(datum[\"habitat_yearround_pct\"]) && isFinite(+datum[\"habitat_yearround_pct\"])"
         }
       ]
+    },
+    {
+      "name": "facet_domain",
+      "source": "source_0",
+      "transform": [{"type": "aggregate", "groupby": ["common_name"]}]
     }
   ],
   "projections": [
