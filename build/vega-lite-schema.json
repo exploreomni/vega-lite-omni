@@ -16453,13 +16453,17 @@
         "columns": {
           "anyOf": [
             {
-              "description": "The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry.",
               "type": "number"
+            },
+            {
+              "const": "auto",
+              "type": "string"
             },
             {
               "$ref": "#/definitions/ExprRef"
             }
-          ]
+          ],
+          "description": "The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry. The value `\"auto\"` arranges a horizontal legend into as many columns as fit within `maxWidth`; a vertical legend uses a single column."
         },
         "cornerRadius": {
           "anyOf": [
@@ -16767,6 +16771,28 @@
             }
           ]
         },
+        "maxHeight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The maximum height in pixels of a symbol legend, including padding and title. Entries that do not fit are clipped and can be scrolled."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The maximum width in pixels of a symbol legend with `columns: \"auto\"`, including padding."
+        },
         "offset": {
           "anyOf": [
             {
@@ -16803,6 +16829,28 @@
               "$ref": "#/definitions/ExprRef"
             }
           ]
+        },
+        "scrollbarColor": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Color"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The color of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.\n\n__Default value:__ `\"#888\"`."
+        },
+        "scrollbarWidth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The width in pixels of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.\n\n__Default value:__ `4`."
         },
         "strokeColor": {
           "anyOf": [
@@ -17233,13 +17281,17 @@
         "columns": {
           "anyOf": [
             {
-              "description": "The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry.",
               "type": "number"
+            },
+            {
+              "const": "auto",
+              "type": "string"
             },
             {
               "$ref": "#/definitions/ExprRef"
             }
-          ]
+          ],
+          "description": "The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry. The value `\"auto\"` arranges a horizontal legend into as many columns as fit within `maxWidth`; a vertical legend uses a single column."
         },
         "cornerRadius": {
           "anyOf": [
@@ -17591,6 +17643,28 @@
             }
           ]
         },
+        "maxHeight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The maximum height in pixels of a symbol legend, including padding and title. Entries that do not fit are clipped and can be scrolled."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The maximum width in pixels of a symbol legend with `columns: \"auto\"`, including padding."
+        },
         "offset": {
           "anyOf": [
             {
@@ -17627,6 +17701,28 @@
               "$ref": "#/definitions/ExprRef"
             }
           ]
+        },
+        "scrollbarColor": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Color"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The color of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.\n\n__Default value:__ `\"#888\"`."
+        },
+        "scrollbarWidth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "The width in pixels of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.\n\n__Default value:__ `4`."
         },
         "strokeColor": {
           "anyOf": [
