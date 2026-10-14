@@ -4,6 +4,7 @@ import type {
   LabelOverlap,
   Legend as VgLegend,
   LegendConfig as VgLegendConfig,
+  LegendLayout,
   LegendOrient,
   Orientation,
   SignalRef,
@@ -28,8 +29,13 @@ type BaseLegendNoValueRefs<ES extends ExprRef | SignalRef> = MapExcludeValueRefA
 
 export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> &
   VlOnlyGuideConfig &
-  MapExcludeValueRefAndReplaceSignalWith<Omit<VgLegendConfig, 'columns'>, ES> &
+  MapExcludeValueRefAndReplaceSignalWith<Omit<VgLegendConfig, 'columns' | 'layout'>, ES> &
   LegendLayoutMixins<ES> & {
+    /**
+     * Legend orient group layout parameters.
+     */
+    layout?: LegendLayout;
+
     /**
      * Max legend length for a vertical gradient when `config.legend.gradientLength` is undefined.
      *
