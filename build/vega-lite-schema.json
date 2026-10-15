@@ -16786,6 +16786,17 @@
             }
           ]
         },
+        "labelWrap": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "Whether symbol legend labels wider than `labelLimit` wrap onto further lines instead of being truncated."
+        },
         "legendX": {
           "anyOf": [
             {
@@ -17654,6 +17665,17 @@
               "$ref": "#/definitions/ExprRef"
             }
           ]
+        },
+        "labelWrap": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/ExprRef"
+            }
+          ],
+          "description": "Whether symbol legend labels wider than `labelLimit` wrap onto further lines instead of being truncated."
         },
         "layout": {
           "$ref": "#/definitions/LegendLayout",

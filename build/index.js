@@ -5776,6 +5776,7 @@ const COMMON_LEGEND_PROPERTY_INDEX = {
     labelOverlap: 1,
     labelPadding: 1,
     labelSeparation: 1,
+    labelWrap: 1,
     legendX: 1,
     legendY: 1,
     maxHeight: 1,
