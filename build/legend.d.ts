@@ -1,4 +1,4 @@
-import type { BaseLegend, LabelOverlap, Legend as VgLegend, LegendConfig as VgLegendConfig, LegendOrient, Orientation, SignalRef } from 'vega';
+import type { BaseLegend, Color, LabelOverlap, Legend as VgLegend, LegendConfig as VgLegendConfig, LegendLayout, LegendOrient, Orientation, SignalRef } from 'vega';
 import { DateTime } from './datetime.js';
 import { ExprRef } from './expr.js';
 import { Guide, GuideEncodingEntry, VlOnlyGuideConfig } from './guide.js';
@@ -6,7 +6,11 @@ import { Flag } from './util.js';
 import { MapExcludeValueRefAndReplaceSignalWith } from './vega.schema.js';
 export declare const LEGEND_SCALE_CHANNELS: readonly ["size", "shape", "fill", "stroke", "strokeDash", "strokeWidth", "opacity"];
 type BaseLegendNoValueRefs<ES extends ExprRef | SignalRef> = MapExcludeValueRefAndReplaceSignalWith<BaseLegend, ES>;
-export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> & VlOnlyGuideConfig & MapExcludeValueRefAndReplaceSignalWith<VgLegendConfig, ES> & {
+export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> & VlOnlyGuideConfig & MapExcludeValueRefAndReplaceSignalWith<Omit<VgLegendConfig, 'columns' | 'layout'>, ES> & LegendLayoutMixins<ES> & {
+    /**
+     * Legend orient group layout parameters.
+     */
+    layout?: LegendLayout;
     /**
      * Max legend length for a vertical gradient when `config.legend.gradientLength` is undefined.
      *
@@ -57,7 +61,7 @@ export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> & Vl
 /**
  * Properties of a legend or boolean flag for determining whether to show it.
  */
-export interface Legend<ES extends ExprRef | SignalRef> extends Omit<BaseLegendNoValueRefs<ES>, 'orient'>, LegendMixins<ES>, Guide {
+export interface Legend<ES extends ExprRef | SignalRef> extends Omit<BaseLegendNoValueRefs<ES>, 'orient' | 'columns'>, LegendMixins<ES>, LegendLayoutMixins<ES>, Guide {
     /**
      * Mark definitions for custom legend encoding.
      *
@@ -95,6 +99,33 @@ export interface Legend<ES extends ExprRef | SignalRef> extends Omit<BaseLegendN
      * @minimum 0
      */
     zindex?: number;
+}
+interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
+    /**
+     * The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry.
+     * The value `"auto"` arranges a horizontal legend into as many columns as fit within `maxWidth`; a vertical legend uses a single column.
+     */
+    columns?: number | 'auto' | ES;
+    /**
+     * The maximum width in pixels of a symbol legend with `columns: "auto"`, including padding.
+     */
+    maxWidth?: number | ES;
+    /**
+     * The maximum height in pixels of a symbol legend, including padding and title. Entries that do not fit are clipped and can be scrolled.
+     */
+    maxHeight?: number | ES;
+    /**
+     * The color of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.
+     *
+     * __Default value:__ `"#888"`.
+     */
+    scrollbarColor?: Color | ES;
+    /**
+     * The width in pixels of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.
+     *
+     * __Default value:__ `4`.
+     */
+    scrollbarWidth?: number | ES;
 }
 interface LegendMixins<ES extends ExprRef | SignalRef> {
     /**
@@ -144,7 +175,7 @@ export interface LegendEncoding {
     gradient?: GuideEncodingEntry;
 }
 export declare const defaultLegendConfig: LegendConfig<SignalRef>;
-export declare const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>)>;
-export declare const LEGEND_PROPERTIES: ("values" | "type" | "padding" | "orient" | "cornerRadius" | "aria" | "description" | "offset" | "zindex" | "labelAlign" | "labelBaseline" | "labelColor" | "labelFont" | "labelFontSize" | "labelFontStyle" | "labelFontWeight" | "labelOpacity" | "labelOffset" | "labelPadding" | "title" | "format" | "formatType" | "tickCount" | "tickMinStep" | "titlePadding" | "titleAlign" | "titleAnchor" | "titleBaseline" | "titleColor" | "titleFont" | "titleFontSize" | "titleFontStyle" | "titleFontWeight" | "titleLimit" | "titleLineHeight" | "titleOpacity" | "labelOverlap" | "labelSeparation" | "labelLimit" | "symbolLimit" | "fillColor" | "strokeColor" | "legendX" | "legendY" | "titleOrient" | "gradientLength" | "gradientOpacity" | "gradientThickness" | "gradientStrokeColor" | "gradientStrokeWidth" | "clipHeight" | "columns" | "columnPadding" | "rowPadding" | "gridAlign" | "symbolDash" | "symbolDashOffset" | "symbolFillColor" | "symbolOffset" | "symbolOpacity" | "symbolSize" | "symbolStrokeColor" | "symbolStrokeWidth" | "symbolType" | "direction")[];
+export declare const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>) | keyof LegendLayoutMixins<any>>;
+export declare const LEGEND_PROPERTIES: ("values" | "type" | "padding" | "orient" | "cornerRadius" | "aria" | "description" | "offset" | "zindex" | "labelAlign" | "labelBaseline" | "labelColor" | "labelFont" | "labelFontSize" | "labelFontStyle" | "labelFontWeight" | "labelOpacity" | "labelOffset" | "labelPadding" | "title" | "format" | "formatType" | "tickCount" | "tickMinStep" | "titlePadding" | "titleAlign" | "titleAnchor" | "titleBaseline" | "titleColor" | "titleFont" | "titleFontSize" | "titleFontStyle" | "titleFontWeight" | "titleLimit" | "titleLineHeight" | "titleOpacity" | "labelOverlap" | "labelSeparation" | "labelLimit" | "symbolLimit" | "fillColor" | "strokeColor" | "legendX" | "legendY" | "titleOrient" | "gradientLength" | "gradientOpacity" | "gradientThickness" | "gradientStrokeColor" | "gradientStrokeWidth" | "clipHeight" | "columnPadding" | "rowPadding" | "gridAlign" | "symbolDash" | "symbolDashOffset" | "symbolFillColor" | "symbolOffset" | "symbolOpacity" | "symbolSize" | "symbolStrokeColor" | "symbolStrokeWidth" | "symbolType" | "direction" | keyof LegendLayoutMixins<any>)[];
 export {};
 //# sourceMappingURL=legend.d.ts.map
