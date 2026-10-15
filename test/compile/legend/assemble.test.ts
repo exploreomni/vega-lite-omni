@@ -37,6 +37,7 @@ describe('legend/assemble', () => {
           type: 'nominal',
           legend: {
             columns: 'auto',
+            labelWrap: true,
             maxWidth: 300,
             maxHeight: {expr: 'height / 5'},
             scrollbarColor: 'red',
@@ -50,6 +51,7 @@ describe('legend/assemble', () => {
     const legends = model.assembleLegends();
     expect(legends[0]).toMatchObject({
       columns: 'auto',
+      labelWrap: true,
       maxWidth: 300,
       maxHeight: {signal: 'height / 5'},
       scrollbarColor: 'red',

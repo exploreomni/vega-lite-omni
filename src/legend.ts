@@ -158,6 +158,11 @@ interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
   maxHeight?: number | ES;
 
   /**
+   * Whether symbol legend labels wider than `labelLimit` wrap onto further lines instead of being truncated.
+   */
+  labelWrap?: boolean | ES;
+
+  /**
    * The color of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.
    *
    * __Default value:__ `"#888"`.
@@ -267,6 +272,7 @@ export const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>) |
   labelOverlap: 1,
   labelPadding: 1,
   labelSeparation: 1,
+  labelWrap: 1,
   legendX: 1,
   legendY: 1,
   maxHeight: 1,
