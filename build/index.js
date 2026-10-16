@@ -1,4 +1,4 @@
-import { isObject, hasOwnProperty, splitAccessPath, stringValue, isNumber, isString, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
+import { isObject, hasOwnProperty, isNumber, isString, splitAccessPath, stringValue, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
 import { stringValue as stringValue$1, hasOwnProperty as hasOwnProperty$1, isObject as isObject$1, isString as isString$1, array as array$1 } from 'vega';
 import { parseSelector } from 'vega-event-selector';
 import { parseExpression as parseExpression$1 } from 'vega-expression';
@@ -4447,25 +4447,27 @@ function extractTransformsFromEncoding(oldEncoding, config) {
             if (aggOp || timeUnit || bin) {
                 const guide = getGuide(channelDef);
                 const isTitleDefined = guide?.title;
+                // `newField` is the literal output name used as `as`. References go through `vgField` without
+                // `forAs`, which escapes a dotted or bracketed name; the two differ only for such names.
                 let newField = vgField(channelDef, { forAs: true });
                 const newFieldDef = {
                     // Only add title if it doesn't exist
                     ...(isTitleDefined ? [] : { title: title(channelDef, config, { allowDisabling: true }) }),
                     ...remaining,
                     // Always overwrite field
-                    field: newField,
+                    field: vgField(channelDef),
                 };
                 if (aggOp) {
                     let op;
                     if (isArgmaxDef(aggOp)) {
                         op = 'argmax';
                         newField = vgField({ op: 'argmax', field: aggOp.argmax }, { forAs: true });
-                        newFieldDef.field = `${newField}.${field}`;
+                        newFieldDef.field = `${vgField({ op: 'argmax', field: aggOp.argmax })}.${field}`;
                     }
                     else if (isArgminDef(aggOp)) {
                         op = 'argmin';
                         newField = vgField({ op: 'argmin', field: aggOp.argmin }, { forAs: true });
-                        newFieldDef.field = `${newField}.${field}`;
+                        newFieldDef.field = `${vgField({ op: 'argmin', field: aggOp.argmin })}.${field}`;
                     }
                     else if (aggOp !== 'boxplot' && aggOp !== 'errorbar' && aggOp !== 'errorband') {
                         op = aggOp;
@@ -4482,7 +4484,7 @@ function extractTransformsFromEncoding(oldEncoding, config) {
                     }
                 }
                 else {
-                    groupby.push(newField);
+                    groupby.push(vgField(channelDef));
                     if (isTypedFieldDef(channelDef) && isBinning(bin)) {
                         bins.push({ bin, field, as: newField });
                         // Add additional groupbys for range and end of bins
@@ -4493,7 +4495,7 @@ function extractTransformsFromEncoding(oldEncoding, config) {
                         // Create accompanying 'x2' or 'y2' field if channel is 'x' or 'y' respectively
                         if (isXorY(channel)) {
                             const secondaryChannel = {
-                                field: `${newField}_end`,
+                                field: vgField(channelDef, { binSuffix: 'end' }),
                             };
                             encoding[`${channel}2`] = secondaryChannel;
                         }
