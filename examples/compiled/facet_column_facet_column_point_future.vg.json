@@ -152,7 +152,7 @@
           "data": [
             {
               "source": "child_facet",
-              "name": "data_0",
+              "name": "facet_data_0",
               "transform": [
                 {
                   "type": "filter",
@@ -172,7 +172,7 @@
               "name": "child_child_marks",
               "type": "symbol",
               "style": ["point"],
-              "from": {"data": "data_0"},
+              "from": {"data": "facet_data_0"},
               "encode": {
                 "update": {
                   "opacity": {"value": 0.7},
