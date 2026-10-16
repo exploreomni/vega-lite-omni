@@ -6,6 +6,19 @@
   "data": [
     {"name": "source_0", "url": "data/barley.json", "format": {"type": "json"}},
     {
+      "name": "trellis_barley_facet_domain",
+      "source": "source_0",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["site"],
+          "fields": ["yield"],
+          "ops": ["median"],
+          "as": ["median_yield"]
+        }
+      ]
+    },
+    {
       "name": "data_2",
       "source": "source_0",
       "transform": [
@@ -70,7 +83,7 @@
       "data": [
         {
           "source": "trellis_barley_facet",
-          "name": "data_0",
+          "name": "facet_data_0",
           "transform": [
             {
               "type": "aggregate",
@@ -97,7 +110,7 @@
           "name": "trellis_barley_child_marks",
           "type": "symbol",
           "style": ["point"],
-          "from": {"data": "data_0"},
+          "from": {"data": "facet_data_0"},
           "encode": {
             "update": {
               "fill": {"value": "transparent"},

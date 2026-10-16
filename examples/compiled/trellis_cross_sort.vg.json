@@ -238,7 +238,7 @@
       "data": [
         {
           "source": "facet",
-          "name": "data_0",
+          "name": "facet_data_0",
           "transform": [
             {
               "type": "filter",
@@ -248,7 +248,7 @@
         },
         {
           "source": "facet",
-          "name": "data_1",
+          "name": "facet_data_1",
           "transform": [
             {
               "type": "aggregate",
@@ -260,8 +260,8 @@
           ]
         },
         {
-          "name": "data_2",
-          "source": "data_1",
+          "name": "facet_data_2",
+          "source": "facet_data_1",
           "transform": [
             {
               "type": "filter",
@@ -270,8 +270,8 @@
           ]
         },
         {
-          "name": "data_3",
-          "source": "data_1",
+          "name": "facet_data_3",
+          "source": "facet_data_1",
           "transform": [
             {
               "type": "filter",
@@ -291,7 +291,7 @@
           "name": "child_layer_0_marks",
           "type": "symbol",
           "style": ["point"],
-          "from": {"data": "data_0"},
+          "from": {"data": "facet_data_0"},
           "encode": {
             "update": {
               "opacity": {"value": 0.7},
@@ -310,7 +310,7 @@
           "name": "child_layer_1_marks",
           "type": "rule",
           "style": ["rule"],
-          "from": {"data": "data_3"},
+          "from": {"data": "facet_data_3"},
           "encode": {
             "update": {
               "stroke": {"value": "black"},
@@ -327,7 +327,7 @@
           "name": "child_layer_2_marks",
           "type": "rule",
           "style": ["rule"],
-          "from": {"data": "data_2"},
+          "from": {"data": "facet_data_2"},
           "encode": {
             "update": {
               "stroke": {"value": "black"},

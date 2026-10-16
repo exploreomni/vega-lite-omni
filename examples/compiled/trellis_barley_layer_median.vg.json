@@ -148,7 +148,7 @@
       },
       "data": [
         {
-          "name": "data_1",
+          "name": "facet_data_1",
           "source": "trellis_barley_facet",
           "transform": [
             {
@@ -165,7 +165,7 @@
           ]
         },
         {
-          "name": "data_2",
+          "name": "facet_data_2",
           "source": "trellis_barley_facet",
           "transform": [
             {
@@ -193,7 +193,7 @@
           "name": "trellis_barley_child_layer_0_marks",
           "type": "symbol",
           "style": ["point"],
-          "from": {"data": "data_1"},
+          "from": {"data": "facet_data_1"},
           "encode": {
             "update": {
               "fill": {"value": "transparent"},
@@ -211,7 +211,7 @@
           "name": "trellis_barley_child_layer_1_marks",
           "type": "rule",
           "style": ["rule"],
-          "from": {"data": "data_2"},
+          "from": {"data": "facet_data_2"},
           "encode": {
             "update": {
               "stroke": {"value": "black"},

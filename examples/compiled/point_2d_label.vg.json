@@ -1,9 +1,9 @@
 {
-  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
   "background": "white",
   "padding": 5,
-  "width": 200,
-  "height": 200,
+  "width": 300,
+  "height": 300,
   "style": "cell",
   "data": [
     {
@@ -47,7 +47,7 @@
         "update": {
           "fill": {"value": "black"},
           "description": {
-            "signal": "\"Horsepower: \" + (isValid(datum[\"Horsepower\"]) ? datum[\"Horsepower\"] : \"\"+datum[\"Horsepower\"])"
+            "signal": "\"Horsepower: \" + (isValid(datum[\"Horsepower\"]) ? isArray(datum[\"Horsepower\"]) ? join(datum[\"Horsepower\"], ' ') : datum[\"Horsepower\"] : \"\"+datum[\"Horsepower\"])"
           },
           "text": {
             "signal": "isValid(datum.datum[\"Horsepower\"]) ? datum.datum[\"Horsepower\"] : \"\"+datum.datum[\"Horsepower\"]"
