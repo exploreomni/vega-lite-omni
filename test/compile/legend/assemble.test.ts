@@ -26,6 +26,41 @@ describe('legend/assemble', () => {
     });
   });
 
+  it('passes the layout and scroll properties through to vega', () => {
+    const model = parseUnitModelWithScale({
+      data: {url: 'data/cars.json'},
+      mark: 'point',
+      encoding: {
+        x: {field: 'Horsepower', type: 'quantitative'},
+        color: {
+          field: 'Origin',
+          type: 'nominal',
+          legend: {
+            columns: 'auto',
+            labelWrap: true,
+            maxWidth: 300,
+            maxHeight: {expr: 'height / 5'},
+            scrollbarColor: 'red',
+            scrollbarWidth: 6,
+            scrollFadeColor: 'white',
+          },
+        },
+      },
+    });
+    model.parseLegends();
+
+    const legends = model.assembleLegends();
+    expect(legends[0]).toMatchObject({
+      columns: 'auto',
+      labelWrap: true,
+      maxWidth: 300,
+      maxHeight: {signal: 'height / 5'},
+      scrollbarColor: 'red',
+      scrollbarWidth: 6,
+      scrollFadeColor: 'white',
+    });
+  });
+
   it('correctly applies custom formatter to labelExpr.', () => {
     const model = parseUnitModelWithScale({
       data: {url: 'data/cars.json'},

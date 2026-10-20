@@ -1,5 +1,6 @@
 import type {
   BaseLegend,
+  Color,
   LabelOverlap,
   Legend as VgLegend,
   LegendConfig as VgLegendConfig,
@@ -28,7 +29,8 @@ type BaseLegendNoValueRefs<ES extends ExprRef | SignalRef> = MapExcludeValueRefA
 
 export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> &
   VlOnlyGuideConfig &
-  MapExcludeValueRefAndReplaceSignalWith<Omit<VgLegendConfig, 'layout'>, ES> & {
+  MapExcludeValueRefAndReplaceSignalWith<Omit<VgLegendConfig, 'columns' | 'layout'>, ES> &
+  LegendLayoutMixins<ES> & {
     /**
      * Legend orient group layout parameters.
      */
@@ -92,7 +94,7 @@ export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> &
  * Properties of a legend or boolean flag for determining whether to show it.
  */
 export interface Legend<ES extends ExprRef | SignalRef>
-  extends Omit<BaseLegendNoValueRefs<ES>, 'orient'>, LegendMixins<ES>, Guide {
+  extends Omit<BaseLegendNoValueRefs<ES>, 'orient' | 'columns'>, LegendMixins<ES>, LegendLayoutMixins<ES>, Guide {
   /**
    * Mark definitions for custom legend encoding.
    *
@@ -135,6 +137,49 @@ export interface Legend<ES extends ExprRef | SignalRef>
    * @minimum 0
    */
   zindex?: number;
+}
+
+// Legend properties the omni vega fork adds, which the published vega typings lack.
+interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
+  /**
+   * The number of columns in which to arrange symbol legend entries. A value of `0` or lower indicates a single row with one column per entry.
+   * The value `"auto"` arranges a horizontal legend into as many columns as fit within `maxWidth`; a vertical legend uses a single column.
+   */
+  columns?: number | 'auto' | ES;
+
+  /**
+   * The maximum width in pixels of a symbol legend with `columns: "auto"`, including padding.
+   */
+  maxWidth?: number | ES;
+
+  /**
+   * The maximum height in pixels of a symbol legend, including padding and title. Entries that do not fit are clipped and can be scrolled.
+   */
+  maxHeight?: number | ES;
+
+  /**
+   * Whether symbol legend labels wider than `labelLimit` wrap onto further lines instead of being truncated.
+   */
+  labelWrap?: boolean | ES;
+
+  /**
+   * The color of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.
+   *
+   * __Default value:__ `"#888"`.
+   */
+  scrollbarColor?: Color | ES;
+
+  /**
+   * The width in pixels of the scrollbar thumb drawn when a symbol legend overflows `maxHeight`.
+   *
+   * __Default value:__ `4`.
+   */
+  scrollbarWidth?: number | ES;
+
+  /**
+   * The color a symbol legend's last visible entries fade into while more can be scrolled, usually the background behind the legend. Unset draws no fade.
+   */
+  scrollFadeColor?: Color | ES;
 }
 
 // Change comments to be Vega-Lite specific
@@ -202,7 +247,7 @@ export const defaultLegendConfig: LegendConfig<SignalRef> = {
   unselectedOpacity: 0.35,
 };
 
-export const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>)> = {
+export const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>) | keyof LegendLayoutMixins<any>> = {
   aria: 1,
   clipHeight: 1,
   columnPadding: 1,
@@ -232,12 +277,18 @@ export const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>)> 
   labelOverlap: 1,
   labelPadding: 1,
   labelSeparation: 1,
+  labelWrap: 1,
   legendX: 1,
   legendY: 1,
+  maxHeight: 1,
+  maxWidth: 1,
   offset: 1,
   orient: 1,
   padding: 1,
   rowPadding: 1,
+  scrollFadeColor: 1,
+  scrollbarColor: 1,
+  scrollbarWidth: 1,
   strokeColor: 1,
   symbolDash: 1,
   symbolDashOffset: 1,
