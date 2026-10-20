@@ -130,6 +130,10 @@ interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
      * __Default value:__ `4`.
      */
     scrollbarWidth?: number | ES;
+    /**
+     * The color a symbol legend's last visible entries fade into while more can be scrolled, usually the background behind the legend. Unset draws no fade.
+     */
+    scrollFadeColor?: Color | ES;
 }
 interface LegendMixins<ES extends ExprRef | SignalRef> {
     /**
