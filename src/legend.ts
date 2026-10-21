@@ -175,7 +175,6 @@ interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
    * __Default value:__ `4`.
    */
   scrollbarWidth?: number | ES;
-
 }
 
 // Change comments to be Vega-Lite specific
