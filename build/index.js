@@ -1,4 +1,4 @@
-import { isObject, hasOwnProperty, isNumber, isString, splitAccessPath, stringValue, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
+import { isObject, hasOwnProperty, splitAccessPath, stringValue, isNumber, isString, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
 import { stringValue as stringValue$1, hasOwnProperty as hasOwnProperty$1, isObject as isObject$1, isString as isString$1, array as array$1 } from 'vega';
 import { parseSelector } from 'vega-event-selector';
 import { parseExpression as parseExpression$1 } from 'vega-expression';
@@ -5778,12 +5778,17 @@ const COMMON_LEGEND_PROPERTY_INDEX = {
     labelOverlap: 1,
     labelPadding: 1,
     labelSeparation: 1,
+    labelWrap: 1,
     legendX: 1,
     legendY: 1,
+    maxHeight: 1,
+    maxWidth: 1,
     offset: 1,
     orient: 1,
     padding: 1,
     rowPadding: 1,
+    scrollbarColor: 1,
+    scrollbarWidth: 1,
     strokeColor: 1,
     symbolDash: 1,
     symbolDashOffset: 1,
