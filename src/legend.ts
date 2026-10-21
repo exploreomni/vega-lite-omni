@@ -176,10 +176,6 @@ interface LegendLayoutMixins<ES extends ExprRef | SignalRef> {
    */
   scrollbarWidth?: number | ES;
 
-  /**
-   * The color a symbol legend's last visible entries fade into while more can be scrolled, usually the background behind the legend. Unset draws no fade.
-   */
-  scrollFadeColor?: Color | ES;
 }
 
 // Change comments to be Vega-Lite specific
@@ -286,7 +282,6 @@ export const COMMON_LEGEND_PROPERTY_INDEX: Flag<keyof (VgLegend | Legend<any>) |
   orient: 1,
   padding: 1,
   rowPadding: 1,
-  scrollFadeColor: 1,
   scrollbarColor: 1,
   scrollbarWidth: 1,
   strokeColor: 1,

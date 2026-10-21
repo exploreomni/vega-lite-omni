@@ -16878,17 +16878,6 @@
             }
           ]
         },
-        "scrollFadeColor": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Color"
-            },
-            {
-              "$ref": "#/definitions/ExprRef"
-            }
-          ],
-          "description": "The color a symbol legend's last visible entries fade into while more can be scrolled, usually the background behind the legend. Unset draws no fade."
-        },
         "scrollbarColor": {
           "anyOf": [
             {
@@ -17772,17 +17761,6 @@
               "$ref": "#/definitions/ExprRef"
             }
           ]
-        },
-        "scrollFadeColor": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Color"
-            },
-            {
-              "$ref": "#/definitions/ExprRef"
-            }
-          ],
-          "description": "The color a symbol legend's last visible entries fade into while more can be scrolled, usually the background behind the legend. Unset draws no fade."
         },
         "scrollbarColor": {
           "anyOf": [

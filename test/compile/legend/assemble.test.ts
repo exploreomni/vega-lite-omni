@@ -42,7 +42,6 @@ describe('legend/assemble', () => {
             maxHeight: {expr: 'height / 5'},
             scrollbarColor: 'red',
             scrollbarWidth: 6,
-            scrollFadeColor: 'white',
           },
         },
       },
@@ -57,7 +56,6 @@ describe('legend/assemble', () => {
       maxHeight: {signal: 'height / 5'},
       scrollbarColor: 'red',
       scrollbarWidth: 6,
-      scrollFadeColor: 'white',
     });
   });
 
