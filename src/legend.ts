@@ -10,6 +10,7 @@ import type {
   Orientation,
   SignalRef,
   TitleAnchor,
+  TitleFrame,
 } from 'vega';
 import {DateTime} from './datetime.js';
 import {ExprRef} from './expr.js';
@@ -52,6 +53,11 @@ export interface BaseLegendLayout {
    * The layout direction for legend orient group layout.
    */
   direction?: Orientation;
+
+  /**
+   * The reference frame for the anchor position, one of `"group"` (the default, to anchor relative to the group width or height) or `"bounds"` (to anchor relative to the full bounding box).
+   */
+  frame?: TitleFrame;
 
   /**
    * The pixel margin between legends within a orient group.
