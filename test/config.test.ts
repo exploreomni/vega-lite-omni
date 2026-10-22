@@ -159,6 +159,9 @@ describe('config', () => {
       view: {
         fill: '#eee',
       },
+      legend: {
+        layout: {top: {anchor: 'middle'}},
+      },
       title: {
         color: 'red',
         fontWeight: 'bold',
@@ -196,6 +199,10 @@ describe('config', () => {
 
     it('should remove conditional axis config', () => {
       expect(output.axis).toBeUndefined();
+    });
+
+    it('should keep legend layout config', () => {
+      expect(output.legend.layout).toEqual({top: {anchor: 'middle'}});
     });
 
     it('should redirect mark config to style and remove VL only mark-specific config', () => {
