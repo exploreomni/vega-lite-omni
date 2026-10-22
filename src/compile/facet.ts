@@ -25,6 +25,7 @@ import {isVgRangeStep, VgData, VgLayout, VgMarkGroup, VgScale} from '../vega.sch
 import {buildModel} from './buildmodel.js';
 import {assembleFacetData} from './data/assemble.js';
 import {sortArrayIndexField} from './data/calculate.js';
+import {rankSortKey} from './data/facet.js';
 import {parseData} from './data/parse.js';
 import {assembleLabelTitle} from './header/assemble.js';
 import {getHeaderChannel, getHeaderProperty} from './header/common.js';
@@ -45,6 +46,10 @@ export function facetSortFieldName(
   opt?: FieldRefOption,
 ) {
   return vgField(sort, {suffix: `by_${vgField(fieldDef)}`, ...opt});
+}
+
+function rankProperty(channel: FacetChannel) {
+  return `${channel}_rank`;
 }
 
 function legendScaleNames(legend: VgLegend): string[] {
@@ -415,8 +420,9 @@ export class FacetModel extends ModelWithField {
           }
         : super.assembleGroup(signals);
 
-    if (this.hoistedScales.length > 0) {
-      group.scales = [...(group.scales ?? []), ...this.hoistedScales];
+    const scales = [...this.hoistedScales, ...this.assembleRankScales()];
+    if (scales.length > 0) {
+      group.scales = [...(group.scales ?? []), ...scales];
     }
     if (this.hoistedLegends.length > 0) {
       group.legends = [...(group.legends ?? []), ...this.hoistedLegends];
@@ -468,6 +474,7 @@ export class FacetModel extends ModelWithField {
     const {row, column} = this.facet;
     const {fields, ops, as} = this.getCardinalityAggregateForChild();
     const groupby: string[] = [];
+    const cross = !!row && !!column;
 
     for (const channel of FACET_CHANNELS) {
       const fieldDef = this.facet[channel];
@@ -480,23 +487,18 @@ export class FacetModel extends ModelWithField {
           groupby.push(vgField(fieldDef, {binSuffix: 'end'}));
         }
 
+        // Crossed cells sort by rank instead; see rankedChannels.
+        if (cross) {
+          continue;
+        }
+
         // `fields` is a field reference, so a dot in the name stays escaped; `as` is
         // the literal output name, so it must not be. They differ for dotted fields.
         if (isSortField(sort)) {
           const {field, op = DEFAULT_SORT_OP} = sort;
-          const outputName = facetSortFieldName(fieldDef, sort, {forAs: true});
-          if (row && column) {
-            // For crossed facet, use pre-calculate field as it requires a different groupby
-            // For each calculated field, apply max and assign them to the same name as
-            // all values of the same group should be the same anyway.
-            fields.push(facetSortFieldName(fieldDef, sort));
-            ops.push('max');
-            as.push(outputName);
-          } else {
-            fields.push(field);
-            ops.push(op);
-            as.push(outputName);
-          }
+          fields.push(field);
+          ops.push(op);
+          as.push(facetSortFieldName(fieldDef, sort, {forAs: true}));
         } else if (isArray(sort)) {
           fields.push(sortArrayIndexField(fieldDef, channel));
           ops.push('max');
@@ -504,8 +506,6 @@ export class FacetModel extends ModelWithField {
         }
       }
     }
-
-    const cross = !!row && !!column;
 
     return {
       name,
@@ -527,7 +527,9 @@ export class FacetModel extends ModelWithField {
     const fieldDef = facet[channel];
 
     if (fieldDef) {
-      if (isSortField(fieldDef.sort)) {
+      if (this.rankedChannels().includes(channel)) {
+        return [rankProperty(channel)];
+      } else if (isSortField(fieldDef.sort)) {
         return [facetSortFieldName(fieldDef, fieldDef.sort, {expr: 'datum'})];
       } else if (isArray(fieldDef.sort)) {
         return [sortArrayIndexField(fieldDef, channel, {expr: 'datum'})];
@@ -535,6 +537,36 @@ export class FacetModel extends ModelWithField {
       return [vgField(fieldDef, {expr: 'datum'})];
     }
     return [];
+  }
+
+  /**
+   * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
+   * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
+   * so it would sort first and shift every later cell out from under its header. Its
+   * groupby values survive, so each cell instead takes its header's place in a scale
+   * over the header domain, sorted as the headers are.
+   */
+  private rankedChannels(): FacetChannel[] {
+    const {row, column} = this.facet;
+    if (!row || !column) {
+      return [];
+    }
+    return [ROW, COLUMN].filter(
+      (channel) => isSortField(this.facet[channel].sort) || isArray(this.facet[channel].sort),
+    );
+  }
+
+  private assembleRankScales(): VgScale[] {
+    return this.rankedChannels().map((channel) => ({
+      name: this.getName(rankProperty(channel)),
+      type: 'point',
+      domain: {
+        data: this.getName(`${channel}_domain`),
+        field: vgField(this.facet[channel]),
+        sort: {field: rankSortKey(channel), op: 'max'},
+      },
+      range: [0, 1],
+    }));
   }
 
   private facetSortOrder(channel: FacetChannel): SortOrder[] {
@@ -581,6 +613,13 @@ export class FacetModel extends ModelWithField {
     const data = assembleFacetData(facetRoot);
 
     const encodeEntry = child.assembleGroupEncodeEntry(false);
+    const rankEntry = Object.fromEntries(
+      this.rankedChannels().map((channel) => [
+        rankProperty(channel),
+        {scale: this.getName(rankProperty(channel)), field: vgField(this.facet[channel])},
+      ]),
+    );
+    const update = {...encodeEntry, ...rankEntry};
 
     const title = this.assembleLabelTitle() || child.assembleTitle();
     const style = child.assembleGroupStyle();
@@ -599,7 +638,7 @@ export class FacetModel extends ModelWithField {
         order: FACET_CHANNELS.map((c) => this.facetSortOrder(c)).flat(),
       },
       ...(data.length > 0 ? {data} : {}),
-      ...(encodeEntry ? {encode: {update: encodeEntry}} : {}),
+      ...(keys(update).length > 0 ? {encode: {update}} : {}),
       ...child.assembleGroup(assembleFacetSignals(this, [])),
     };
 

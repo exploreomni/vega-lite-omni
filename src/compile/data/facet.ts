@@ -1,7 +1,7 @@
 import type {AggregateOp} from 'vega';
 import {isArray} from 'vega-util';
 import {isBinning} from '../../bin.js';
-import {COLUMN, FACET_CHANNELS, POSITION_SCALE_CHANNELS, ROW} from '../../channel.js';
+import {COLUMN, FACET_CHANNELS, FacetChannel, POSITION_SCALE_CHANNELS, ROW} from '../../channel.js';
 import {vgField} from '../../channeldef.js';
 import * as log from '../../log/index.js';
 import {hasDiscreteDomain} from '../../scale.js';
@@ -26,6 +26,10 @@ interface FacetChannelInfo {
   sortField?: EncodingSortField<string>;
 
   sortIndexField?: string;
+}
+
+export function rankSortKey(channel: FacetChannel) {
+  return `${channel}_rank_key`;
 }
 
 /**
@@ -174,15 +178,23 @@ export class FacetNode extends DataFlowNode {
     }
 
     const {sortField, sortIndexField} = this[channel];
-    if (sortField) {
-      const {op = DEFAULT_SORT_OP, field} = sortField;
-      fields.push(field);
-      ops.push(op);
-      as.push(vgField(sortField, {forAs: true}));
-    } else if (sortIndexField) {
-      fields.push(sortIndexField);
-      ops.push('max');
-      as.push(sortIndexField);
+    const sort: {field: string; op: AggregateOp; as: string} = sortField
+      ? {field: sortField.field, op: sortField.op ?? DEFAULT_SORT_OP, as: vgField(sortField, {forAs: true})}
+      : sortIndexField
+        ? {field: sortIndexField, op: 'max', as: sortArrayIndexField(this.model.facet[channel], channel, {forAs: true})}
+        : undefined;
+    if (sort) {
+      fields.push(sort.field);
+      ops.push(sort.op);
+      as.push(sort.as);
+      if (this.row && this.column) {
+        // The key a crossed facet's rank scale sorts by. A Vega domain sort names its
+        // aggregate after the field reference, escapes and all, so a dotted name never
+        // matches; this one has none.
+        fields.push(sort.field);
+        ops.push(sort.op);
+        as.push(rankSortKey(channel));
+      }
     }
 
     return {

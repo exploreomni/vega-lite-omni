@@ -1,4 +1,4 @@
-import type {SignalRef} from 'vega';
+import {parse, View, type SignalRef} from 'vega';
 import {ROW} from '../../src/channel.js';
 import {compile} from '../../src/compile/compile.js';
 import {FacetModel} from '../../src/compile/facet.js';
@@ -733,9 +733,9 @@ describe('FacetModel', () => {
 
       const marks = model.assembleMarks();
 
-      expect(marks[0].from.facet.aggregate.cross).toBeTruthy();
+      expect(marks[0].from.facet.aggregate).toEqual({cross: true});
       expect(marks[0].sort).toEqual({
-        field: ['datum["row_a_sort_index"]', 'datum["column_b_sort_index"]'],
+        field: ['row_rank', 'column_rank'],
         order: ['ascending', 'ascending'],
       });
     });
@@ -757,15 +757,9 @@ describe('FacetModel', () => {
 
       const marks = model.assembleMarks();
 
-      expect(marks[0].from.facet.aggregate).toEqual({
-        cross: true,
-        fields: ['median_d_by_a', 'median_e_by_b'],
-        ops: ['max', 'max'],
-        as: ['median_d_by_a', 'median_e_by_b'],
-      });
-
+      expect(marks[0].from.facet.aggregate).toEqual({cross: true});
       expect(marks[0].sort).toEqual({
-        field: ['datum["median_d_by_a"]', 'datum["median_e_by_b"]'],
+        field: ['row_rank', 'column_rank'],
         order: ['ascending', 'ascending'],
       });
     });
@@ -801,36 +795,6 @@ describe('FacetModel', () => {
       expect(marks[0].sort).toEqual({
         field: ['datum["o.status__sort_by_o.status"]'],
         order: ['ascending'],
-      });
-    });
-
-    it('should sort crossed cells by escaped sort fields', () => {
-      const model: FacetModel = parseFacetModelWithScale({
-        facet: {
-          row: {field: 'o\\.region', type: 'ordinal', sort: {field: 'o\\.r__sort', op: 'median'}},
-          column: {field: 'o\\.status', type: 'ordinal', sort: {field: 'o\\.s__sort', op: 'median'}},
-        },
-        spec: {
-          mark: 'point',
-          encoding: {
-            x: {field: 'o\\.count', type: 'quantitative'},
-          },
-        },
-      });
-      model.parse();
-
-      const marks = model.assembleMarks();
-
-      expect(marks[0].from.facet.aggregate).toEqual({
-        cross: true,
-        fields: ['median_o\\.r__sort_by_o\\.region', 'median_o\\.s__sort_by_o\\.status'],
-        ops: ['max', 'max'],
-        as: ['median_o.r__sort_by_o.region', 'median_o.s__sort_by_o.status'],
-      });
-
-      expect(marks[0].sort).toEqual({
-        field: ['datum["median_o.r__sort_by_o.region"]', 'datum["median_o.s__sort_by_o.status"]'],
-        order: ['ascending', 'ascending'],
       });
     });
 
@@ -939,5 +903,41 @@ describe('FacetModel', () => {
 
       expect(marks[0].from.facet.groupby).toEqual(['bin_maxbins_6_a', 'bin_maxbins_6_a_end']);
     });
+
+    it.each([
+      ['sort fields', {field: 'o\\.rs'}, {field: 'o\\.cs', order: 'descending'}],
+      ['sort arrays', ['q', 'p'], ['c', 'b', 'a']],
+    ] as const)(
+      'places crossed cells under their headers when a cell is empty, with %s',
+      async (_, rowSort, colSort) => {
+        const values = ['p', 'q'].flatMap((r) =>
+          ['a', 'b', 'c']
+            .filter((c) => !(r === 'p' && c === 'b'))
+            .map((c) => ({'o.r': r, 'o.c': c, 'o.rs': r === 'q' ? 1 : 2, 'o.cs': c.charCodeAt(0), v: 1})),
+        );
+        const {spec} = compile({
+          data: {values},
+          facet: {
+            row: {field: 'o\\.r', type: 'nominal', sort: rowSort},
+            column: {field: 'o\\.c', type: 'nominal', sort: colSort},
+          },
+          spec: {mark: 'point', encoding: {x: {field: 'v', type: 'quantitative'}}},
+        } as any);
+        const view = new View(parse(spec), {renderer: 'none'});
+        await view.runAsync();
+
+        const marks = (view.scenegraph() as any).root.items[0].items;
+        const group = (name: string) => marks.find((m: any) => m.name === name).items;
+        const rows = group('row_header').map((h: any) => h.datum['o.r']);
+        const columns = group('column_header').map((h: any) => h.datum['o.c']);
+        expect([rows, columns]).toEqual([
+          ['q', 'p'],
+          ['c', 'b', 'a'],
+        ]);
+        expect(group('cell').map((g: any) => [g.datum['o.r'], g.datum['o.c']])).toEqual(
+          rows.flatMap((r: string) => columns.map((c: string) => [r, c])),
+        );
+      },
+    );
   });
 });
