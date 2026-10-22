@@ -78,7 +78,7 @@ _See also:_ This [interactive article](https://beta.observablehq.com/@jheer/a-gu
 
 ### Symbol Layout
 
-{% include table.html props="clipHeight,columnPadding,columns,gridAlign,rowPadding,symbolLimit" source="Legend" %}
+{% include table.html props="clipHeight,columnPadding,columns,gridAlign,labelWrap,maxHeight,maxWidth,rowPadding,scrollbarColor,scrollbarWidth,symbolLimit" source="Legend" %}
 
 ### Title
 

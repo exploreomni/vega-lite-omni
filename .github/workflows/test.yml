@@ -35,7 +35,8 @@ jobs:
 
   runtime-lint-coverage:
     name: Runtime, Linting, and Coverage
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04, which Playwright's chromium does not support yet
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v6
