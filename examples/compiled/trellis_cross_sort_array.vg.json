@@ -54,9 +54,9 @@
         {
           "type": "aggregate",
           "groupby": ["a"],
-          "fields": ["column_a_sort_index"],
-          "ops": ["max"],
-          "as": ["column_a_sort_index"]
+          "fields": ["column_a_sort_index", "column_a_sort_index"],
+          "ops": ["max", "max"],
+          "as": ["column_a_sort_index", "column_rank_key"]
         }
       ]
     },
@@ -67,9 +67,9 @@
         {
           "type": "aggregate",
           "groupby": ["b"],
-          "fields": ["row_b_sort_index"],
-          "ops": ["max"],
-          "as": ["row_b_sort_index"]
+          "fields": ["row_b_sort_index", "row_b_sort_index"],
+          "ops": ["max", "max"],
+          "as": ["row_b_sort_index", "row_rank_key"]
         }
       ]
     },
@@ -219,19 +219,11 @@
           "name": "facet",
           "data": "data_0",
           "groupby": ["b", "a"],
-          "aggregate": {
-            "cross": true,
-            "fields": ["row_b_sort_index", "column_a_sort_index"],
-            "ops": ["max", "max"],
-            "as": ["row_b_sort_index", "column_a_sort_index"]
-          }
+          "aggregate": {"cross": true}
         }
       },
       "sort": {
-        "field": [
-          "datum[\"row_b_sort_index\"]",
-          "datum[\"column_a_sort_index\"]"
-        ],
+        "field": ["row_rank", "column_rank"],
         "order": ["ascending", "ascending"]
       },
       "data": [
@@ -282,7 +274,9 @@
       "encode": {
         "update": {
           "width": {"signal": "child_width"},
-          "height": {"signal": "child_height"}
+          "height": {"signal": "child_height"},
+          "row_rank": {"scale": "row_rank", "field": "b"},
+          "column_rank": {"scale": "column_rank", "field": "a"}
         }
       },
       "marks": [
@@ -398,6 +392,26 @@
       "range": [{"signal": "child_height"}, 0],
       "nice": true,
       "zero": true
+    },
+    {
+      "name": "row_rank",
+      "type": "point",
+      "domain": {
+        "data": "row_domain",
+        "field": "b",
+        "sort": {"field": "row_rank_key", "op": "max"}
+      },
+      "range": [0, 1]
+    },
+    {
+      "name": "column_rank",
+      "type": "point",
+      "domain": {
+        "data": "column_domain",
+        "field": "a",
+        "sort": {"field": "column_rank_key", "op": "max"}
+      },
+      "range": [0, 1]
     }
   ]
 }
