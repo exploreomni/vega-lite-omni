@@ -10,16 +10,18 @@ export function labels(model: UnitModel, channel: PositionScaleChannel, specifie
     getFieldOrDatumDef<string>(encoding[channel]) ?? getFieldOrDatumDef(encoding[getSecondaryRangeChannel(channel)]);
   const axis = model.axis(channel) || {};
   const {format, formatType} = axis;
+  const logScale = model.getScaleComponent(channel)?.get('type') === 'log';
+
+  // Vega blanks most of a log axis's tick labels, but only in datum.label; a custom
+  // format reads datum.value, so it keeps that choice by labeling only what Vega did.
+  const customText = (custom: {format: typeof format; formatType: string}) => {
+    const text = formatCustomType({fieldOrDatumDef, field: 'datum.value', ...custom, config});
+    return logScale ? {signal: `datum.label ? ${text.signal} : ''`} : text;
+  };
 
   if (isCustomFormatType(formatType)) {
     return {
-      text: formatCustomType({
-        fieldOrDatumDef,
-        field: 'datum.value',
-        format,
-        formatType,
-        config,
-      }),
+      text: customText({format, formatType}),
       ...specifiedLabelsSpec,
     };
   } else if (format === undefined && formatType === undefined && config.customFormatTypes) {
@@ -30,24 +32,12 @@ export function labels(model: UnitModel, channel: PositionScaleChannel, specifie
         config.normalizedNumberFormatType
       ) {
         return {
-          text: formatCustomType({
-            fieldOrDatumDef,
-            field: 'datum.value',
-            format: config.normalizedNumberFormat,
-            formatType: config.normalizedNumberFormatType,
-            config,
-          }),
+          text: customText({format: config.normalizedNumberFormat, formatType: config.normalizedNumberFormatType}),
           ...specifiedLabelsSpec,
         };
       } else if (config.numberFormatType) {
         return {
-          text: formatCustomType({
-            fieldOrDatumDef,
-            field: 'datum.value',
-            format: config.numberFormat,
-            formatType: config.numberFormatType,
-            config,
-          }),
+          text: customText({format: config.numberFormat, formatType: config.numberFormatType}),
           ...specifiedLabelsSpec,
         };
       }
@@ -59,13 +49,7 @@ export function labels(model: UnitModel, channel: PositionScaleChannel, specifie
       !fieldOrDatumDef.timeUnit
     ) {
       return {
-        text: formatCustomType({
-          fieldOrDatumDef,
-          field: 'datum.value',
-          format: config.timeFormat,
-          formatType: config.timeFormatType,
-          config,
-        }),
+        text: customText({format: config.timeFormat, formatType: config.timeFormatType}),
         ...specifiedLabelsSpec,
       };
     }

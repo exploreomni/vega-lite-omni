@@ -1,4 +1,6 @@
+import {expressionFunction, parse, View} from 'vega';
 import * as encode from '../../../src/compile/axis/encode.js';
+import {compile} from '../../../src/compile/compile.js';
 import {parseUnitModelWithScale} from '../../util.js';
 
 describe('compile/axis/encode', () => {
@@ -100,6 +102,35 @@ describe('compile/axis/encode', () => {
       });
       const labels = encode.labels(model, 'x', {});
       expect(labels).toEqual({});
+    });
+
+    it.each([
+      ['axis format type', {formatType: 'customNumberFormat'}, {}],
+      ['config number format type', {}, {numberFormatType: 'customNumberFormat'}],
+    ])("labels the log ticks Vega's own format labels, with a custom %s", async (_, axis, config) => {
+      expressionFunction('customNumberFormat', (value: number) => `#${value}`);
+      const labeled = async (axisFormat: object, configFormat: object) => {
+        const {spec} = compile({
+          data: {values: [{a: 25}, {a: 45000}]},
+          mark: 'point',
+          encoding: {
+            y: {field: 'a', type: 'quantitative', scale: {type: 'log'}, axis: {labelOverlap: false, ...axisFormat}},
+          },
+          config: {customFormatTypes: true, ...configFormat},
+        });
+        const view = new View(parse(spec), {renderer: 'none'});
+        await view.runAsync();
+        const labelMark = (view.scenegraph() as any).root.items[0].items
+          .filter((m: any) => m.role === 'axis')
+          .flatMap((m: any) => m.items[0].items)
+          .find((m: any) => m.role === 'axis-label');
+        return labelMark.items.filter((t: any) => t.text).map((t: any) => t.datum.value);
+      };
+
+      const own = await labeled({}, {});
+      expect(own).toContain(100);
+      expect(own).not.toContain(300);
+      expect(await labeled(axis, config)).toEqual(own);
     });
   });
 });
