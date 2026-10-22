@@ -1,6 +1,8 @@
+import { FacetChannel } from '../../channel.js';
 import { VgData } from '../../vega.schema.js';
 import { FacetModel } from '../facet.js';
 import { DataFlowNode } from './dataflow.js';
+export declare function rankSortKey(channel: FacetChannel): string;
 /**
  * A node that helps us track what fields we are faceting by.
  */

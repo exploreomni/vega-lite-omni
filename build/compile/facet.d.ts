@@ -39,6 +39,15 @@ export declare class FacetModel extends ModelWithField {
     private getCardinalityAggregateForChild;
     private assembleFacet;
     private facetSortFields;
+    /**
+     * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
+     * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
+     * so it would sort first and shift every later cell out from under its header. Its
+     * groupby values survive, so each cell instead takes its header's place in a scale
+     * over the header domain, sorted as the headers are.
+     */
+    private rankedChannels;
+    private assembleRankScales;
     private facetSortOrder;
     private assembleLabelTitle;
     assembleMarks(): VgMarkGroup[];
