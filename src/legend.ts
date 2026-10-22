@@ -2,12 +2,14 @@ import type {
   BaseLegend,
   Color,
   LabelOverlap,
+  LayoutBounds,
   Legend as VgLegend,
   LegendConfig as VgLegendConfig,
-  LegendLayout,
+  LegendLayout as VgLegendLayout,
   LegendOrient,
   Orientation,
   SignalRef,
+  TitleAnchor,
 } from 'vega';
 import {DateTime} from './datetime.js';
 import {ExprRef} from './expr.js';
@@ -26,6 +28,45 @@ export const LEGEND_SCALE_CHANNELS = [
 ] as const;
 
 type BaseLegendNoValueRefs<ES extends ExprRef | SignalRef> = MapExcludeValueRefAndReplaceSignalWith<BaseLegend, ES>;
+
+// Vega's legend orient group layout without its signal refs, as the schema
+// has it: the compiler forwards the object untouched, so a signal or expr in
+// it would reach vega unconverted.
+export interface BaseLegendLayout {
+  /**
+   * The anchor point for legend orient group layout.
+   */
+  anchor?: TitleAnchor;
+
+  /**
+   * The bounds calculation to use for legend orient group layout.
+   */
+  bounds?: LayoutBounds;
+
+  /**
+   * A flag to center legends within a shared orient group.
+   */
+  center?: boolean;
+
+  /**
+   * The layout direction for legend orient group layout.
+   */
+  direction?: Orientation;
+
+  /**
+   * The pixel margin between legends within a orient group.
+   */
+  margin?: number;
+
+  /**
+   * The pixel offset from the chart body for a legend orient group.
+   */
+  offset?: number;
+}
+
+export type LegendLayout = BaseLegendLayout & {
+  [P in Exclude<keyof VgLegendLayout, keyof BaseLegendLayout>]?: BaseLegendLayout;
+};
 
 export type LegendConfig<ES extends ExprRef | SignalRef> = LegendMixins<ES> &
   VlOnlyGuideConfig &
