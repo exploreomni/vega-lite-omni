@@ -34,20 +34,6 @@
           "ops": ["median"],
           "fields": ["y"],
           "groupby": ["b"]
-        },
-        {
-          "type": "joinaggregate",
-          "as": ["median_y_by_b"],
-          "ops": ["median"],
-          "fields": ["y"],
-          "groupby": ["b"]
-        },
-        {
-          "type": "joinaggregate",
-          "as": ["median_x_by_a"],
-          "ops": ["median"],
-          "fields": ["x"],
-          "groupby": ["a"]
         }
       ]
     },
@@ -60,7 +46,7 @@
           "groupby": ["a"],
           "fields": ["x"],
           "ops": ["median"],
-          "as": ["median_x"]
+          "as": ["column_rank_key"]
         }
       ]
     },
@@ -73,7 +59,7 @@
           "groupby": ["b"],
           "fields": ["y"],
           "ops": ["median"],
-          "as": ["median_y"]
+          "as": ["row_rank_key"]
         }
       ]
     },
@@ -155,7 +141,7 @@
       "type": "group",
       "role": "row-header",
       "from": {"data": "row_domain"},
-      "sort": {"field": "datum[\"median_y\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"row_rank_key\"]", "order": "ascending"},
       "title": {
         "text": {
           "signal": "isValid(parent[\"b\"]) ? parent[\"b\"] : \"\"+parent[\"b\"]"
@@ -183,7 +169,7 @@
       "type": "group",
       "role": "column-header",
       "from": {"data": "column_domain"},
-      "sort": {"field": "datum[\"median_x\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"column_rank_key\"]", "order": "ascending"},
       "title": {
         "text": {
           "signal": "isValid(parent[\"a\"]) ? parent[\"a\"] : \"\"+parent[\"a\"]"
@@ -199,7 +185,7 @@
       "type": "group",
       "role": "column-footer",
       "from": {"data": "column_domain"},
-      "sort": {"field": "datum[\"median_x\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"column_rank_key\"]", "order": "ascending"},
       "encode": {"update": {"width": {"signal": "child_width"}}},
       "axes": [
         {
@@ -223,16 +209,11 @@
           "name": "facet",
           "data": "data_0",
           "groupby": ["b", "a"],
-          "aggregate": {
-            "cross": true,
-            "fields": ["median_y_by_b", "median_x_by_a"],
-            "ops": ["max", "max"],
-            "as": ["median_y_by_b", "median_x_by_a"]
-          }
+          "aggregate": {"cross": true}
         }
       },
       "sort": {
-        "field": ["datum[\"median_y_by_b\"]", "datum[\"median_x_by_a\"]"],
+        "field": ["row_rank", "column_rank"],
         "order": ["ascending", "ascending"]
       },
       "data": [
@@ -283,7 +264,9 @@
       "encode": {
         "update": {
           "width": {"signal": "child_width"},
-          "height": {"signal": "child_height"}
+          "height": {"signal": "child_height"},
+          "row_rank": {"scale": "row_rank", "field": "b"},
+          "column_rank": {"scale": "column_rank", "field": "a"}
         }
       },
       "marks": [
@@ -399,6 +382,26 @@
       "range": [{"signal": "child_height"}, 0],
       "nice": true,
       "zero": true
+    },
+    {
+      "name": "row_rank",
+      "type": "point",
+      "domain": {
+        "data": "row_domain",
+        "field": "b",
+        "sort": {"field": "row_rank_key", "op": "max", "order": "ascending"}
+      },
+      "range": [0, 1]
+    },
+    {
+      "name": "column_rank",
+      "type": "point",
+      "domain": {
+        "data": "column_domain",
+        "field": "a",
+        "sort": {"field": "column_rank_key", "op": "max", "order": "ascending"}
+      },
+      "range": [0, 1]
     }
   ]
 }

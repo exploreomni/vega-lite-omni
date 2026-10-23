@@ -160,7 +160,7 @@ describe('compile/data/facet', () => {
             groupby: ['c'],
             fields: ['column_c_sort_index'],
             ops: ['max'],
-            as: ['column_c_sort_index'],
+            as: ['column_rank_key'],
           },
         ],
       });
@@ -174,7 +174,7 @@ describe('compile/data/facet', () => {
             groupby: ['r'],
             fields: ['row_r_sort_index'],
             ops: ['max'],
-            as: ['row_r_sort_index'],
+            as: ['row_rank_key'],
           },
         ],
       });
@@ -211,7 +211,7 @@ describe('compile/data/facet', () => {
             groupby: ['c'],
             fields: ['a'],
             ops: ['min'],
-            as: ['a'],
+            as: ['column_rank_key'],
           },
         ],
       });
@@ -225,7 +225,7 @@ describe('compile/data/facet', () => {
             groupby: ['r'],
             fields: ['b'],
             ops: ['median'],
-            as: ['median_b'],
+            as: ['row_rank_key'],
           },
         ],
       });

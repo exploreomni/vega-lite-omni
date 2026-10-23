@@ -160,7 +160,7 @@ describe('config', () => {
         fill: '#eee',
       },
       legend: {
-        layout: {top: {anchor: 'middle'}},
+        layout: {top: {anchor: 'middle', frame: 'bounds'}},
       },
       title: {
         color: 'red',
@@ -202,7 +202,7 @@ describe('config', () => {
     });
 
     it('should keep legend layout config', () => {
-      expect(output.legend.layout).toEqual({top: {anchor: 'middle'}});
+      expect(output.legend.layout).toEqual({top: {anchor: 'middle', frame: 'bounds'}});
     });
 
     it('should redirect mark config to style and remove VL only mark-specific config', () => {
