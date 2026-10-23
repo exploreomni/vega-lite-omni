@@ -44,9 +44,9 @@
         {
           "type": "aggregate",
           "groupby": ["a"],
-          "fields": ["x", "x"],
-          "ops": ["median", "median"],
-          "as": ["median_x", "column_rank_key"]
+          "fields": ["x"],
+          "ops": ["median"],
+          "as": ["column_rank_key"]
         }
       ]
     },
@@ -57,9 +57,9 @@
         {
           "type": "aggregate",
           "groupby": ["b"],
-          "fields": ["y", "y"],
-          "ops": ["median", "median"],
-          "as": ["median_y", "row_rank_key"]
+          "fields": ["y"],
+          "ops": ["median"],
+          "as": ["row_rank_key"]
         }
       ]
     },
@@ -141,7 +141,7 @@
       "type": "group",
       "role": "row-header",
       "from": {"data": "row_domain"},
-      "sort": {"field": "datum[\"median_y\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"row_rank_key\"]", "order": "ascending"},
       "title": {
         "text": {
           "signal": "isValid(parent[\"b\"]) ? parent[\"b\"] : \"\"+parent[\"b\"]"
@@ -169,7 +169,7 @@
       "type": "group",
       "role": "column-header",
       "from": {"data": "column_domain"},
-      "sort": {"field": "datum[\"median_x\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"column_rank_key\"]", "order": "ascending"},
       "title": {
         "text": {
           "signal": "isValid(parent[\"a\"]) ? parent[\"a\"] : \"\"+parent[\"a\"]"
@@ -185,7 +185,7 @@
       "type": "group",
       "role": "column-footer",
       "from": {"data": "column_domain"},
-      "sort": {"field": "datum[\"median_x\"]", "order": "ascending"},
+      "sort": {"field": "datum[\"column_rank_key\"]", "order": "ascending"},
       "encode": {"update": {"width": {"signal": "child_width"}}},
       "axes": [
         {
@@ -389,7 +389,7 @@
       "domain": {
         "data": "row_domain",
         "field": "b",
-        "sort": {"field": "row_rank_key", "op": "max"}
+        "sort": {"field": "row_rank_key", "op": "max", "order": "ascending"}
       },
       "range": [0, 1]
     },
@@ -399,7 +399,7 @@
       "domain": {
         "data": "column_domain",
         "field": "a",
-        "sort": {"field": "column_rank_key", "op": "max"}
+        "sort": {"field": "column_rank_key", "op": "max", "order": "ascending"}
       },
       "range": [0, 1]
     }
