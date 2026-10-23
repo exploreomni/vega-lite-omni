@@ -3,7 +3,7 @@
  */
 
 import {SignalRef, TitleAnchor, TitleConfig} from 'vega';
-import {isArray} from 'vega-util';
+import {isArray, stringValue} from 'vega-util';
 import {FacetChannel, FACET_CHANNELS} from '../../channel.js';
 import {vgField} from '../../channeldef.js';
 import {Config} from '../../config.js';
@@ -20,6 +20,7 @@ import {contains, isEmpty, normalizeAngle, replaceAll} from '../../util.js';
 import {RowCol, VgComparator, VgMarkGroup, VgTitle} from '../../vega.schema.js';
 import {defaultLabelAlign, defaultLabelBaseline} from '../axis/properties.js';
 import {sortArrayIndexField} from '../data/calculate.js';
+import {rankedChannels, rankSortKey} from '../data/facet.js';
 import {formatSignalRef} from '../format.js';
 import {isFacetModel, Model} from '../model.js';
 import {getHeaderChannel, getHeaderProperties, getHeaderProperty} from './common.js';
@@ -97,9 +98,14 @@ export function assembleHeaderGroups(model: Model, channel: HeaderChannel): VgMa
   return groups;
 }
 
-function getSort(facetFieldDef: FacetFieldDef<string>, channel: HeaderChannel): VgComparator {
+function getSort(facetFieldDef: FacetFieldDef<string>, channel: HeaderChannel, ranked: boolean): VgComparator {
   const {sort} = facetFieldDef;
-  if (isSortField(sort)) {
+  if (ranked) {
+    return {
+      field: `datum[${stringValue(rankSortKey(channel))}]`,
+      order: (isSortField(sort) && sort.order) || 'ascending',
+    };
+  } else if (isSortField(sort)) {
     return {
       field: vgField(sort, {expr: 'datum'}),
       order: sort.order ?? 'ascending',
@@ -196,7 +202,11 @@ export function assembleHeaderGroup(
         ...(layoutHeader.facetFieldDef
           ? {
               from: {data: model.getName(`${channel}_domain`)},
-              sort: getSort(facetFieldDef, channel),
+              sort: getSort(
+                facetFieldDef,
+                channel,
+                isFacetModel(model) && rankedChannels(model.facet).includes(channel),
+              ),
             }
           : {}),
         ...(hasAxes && isFacetWithoutRowCol

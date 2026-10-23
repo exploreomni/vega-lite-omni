@@ -1,4 +1,6 @@
+import {expressionFunction, parse, View} from 'vega';
 import * as encode from '../../../src/compile/axis/encode.js';
+import {compile} from '../../../src/compile/compile.js';
 import {parseUnitModelWithScale} from '../../util.js';
 
 describe('compile/axis/encode', () => {
@@ -100,6 +102,50 @@ describe('compile/axis/encode', () => {
       });
       const labels = encode.labels(model, 'x', {});
       expect(labels).toEqual({});
+    });
+
+    describe('on a log scale with a custom format', () => {
+      beforeAll(() => {
+        expressionFunction('customNumberFormat', (value: number) => `#${value}`);
+      });
+
+      const labelTexts = async (axis: object, config: object) => {
+        const {spec} = compile({
+          data: {values: [{a: 25}, {a: 45000}]},
+          mark: 'point',
+          encoding: {y: {field: 'a', type: 'quantitative', scale: {type: 'log'}, axis: {labelOverlap: false, ...axis}}},
+          config: {customFormatTypes: true, ...config},
+        });
+        const view = new View(parse(spec), {renderer: 'none'});
+        await view.runAsync();
+        const labelMark = (view.scenegraph() as any).root.items[0].items
+          .filter((m: any) => m.role === 'axis')
+          .flatMap((m: any) => m.items[0].items)
+          .find((m: any) => m.role === 'axis-label');
+        return labelMark.items.map((t: any) => ({value: t.datum.value, text: t.text})) as {
+          value: number;
+          text: string;
+        }[];
+      };
+      const labeledValues = (labels: Awaited<ReturnType<typeof labelTexts>>) =>
+        labels.filter((l) => l.text).map((l) => l.value);
+
+      it.each([
+        ['axis format type', {formatType: 'customNumberFormat'}, {}],
+        ['config number format type', {}, {numberFormatType: 'customNumberFormat'}],
+      ])("labels the ticks Vega's own format labels, from the %s", async (_, axis, config) => {
+        const own = labeledValues(await labelTexts({}, {}));
+        expect(own).toContain(100);
+        expect(own).not.toContain(300);
+        expect(labeledValues(await labelTexts(axis, config))).toEqual(own);
+      });
+
+      it('composes into a labelExpr', async () => {
+        const labelExpr = "datum.label + ' u'";
+        const own = await labelTexts({labelExpr}, {});
+        const custom = await labelTexts({labelExpr, formatType: 'customNumberFormat'}, {});
+        expect(custom.map((l) => l.text)).toEqual(own.map((l) => (l.text === ' u' ? ' u' : `#${l.value} u`)));
+      });
     });
   });
 });
