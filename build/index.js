@@ -11545,913 +11545,8 @@ function sortArrayIndexField(fieldDef, channel, opt) {
     return vgField(fieldDef, { prefix: channel, suffix: 'sort_index', ...opt });
 }
 
-/**
- * Get header channel, which can be different from facet channel when orient is specified or when the facet channel is facet.
- */
-function getHeaderChannel(channel, orient) {
-    if (contains(['top', 'bottom'], orient)) {
-        return 'column';
-    }
-    else if (contains(['left', 'right'], orient)) {
-        return 'row';
-    }
-    return channel === 'row' ? 'row' : 'column';
-}
-function getHeaderProperty(prop, header, config, channel) {
-    const headerSpecificConfig = channel === 'row' ? config.headerRow : channel === 'column' ? config.headerColumn : config.headerFacet;
-    return getFirstDefined((header || {})[prop], headerSpecificConfig[prop], config.header[prop]);
-}
-function getHeaderProperties(properties, header, config, channel) {
-    const props = {};
-    for (const prop of properties) {
-        const value = getHeaderProperty(prop, header || {}, config, channel);
-        if (value !== undefined) {
-            props[prop] = value;
-        }
-    }
-    return props;
-}
-
 const HEADER_CHANNELS = ['row', 'column'];
 const HEADER_TYPES = ['header', 'footer'];
-
-/**
- * Utility for generating row / column headers
- */
-// TODO: rename to assembleHeaderTitleGroup
-function assembleTitleGroup(model, channel) {
-    const title = model.component.layoutHeaders[channel].title;
-    const config = model.config ? model.config : undefined;
-    const facetFieldDef = model.component.layoutHeaders[channel].facetFieldDef
-        ? model.component.layoutHeaders[channel].facetFieldDef
-        : undefined;
-    const { titleAnchor, titleAngle: ta, titleOrient, } = getHeaderProperties(['titleAnchor', 'titleAngle', 'titleOrient'], facetFieldDef.header, config, channel);
-    const headerChannel = getHeaderChannel(channel, titleOrient);
-    const titleAngle = normalizeAngle(ta);
-    return {
-        name: `${channel}-title`,
-        type: 'group',
-        role: `${headerChannel}-title`,
-        title: {
-            text: title,
-            ...(channel === 'row' ? { orient: 'left' } : {}),
-            style: 'guide-title',
-            ...defaultHeaderGuideBaseline(titleAngle, headerChannel),
-            ...defaultHeaderGuideAlign(headerChannel, titleAngle, titleAnchor),
-            ...assembleHeaderProperties(config, facetFieldDef, channel, HEADER_TITLE_PROPERTIES, HEADER_TITLE_PROPERTIES_MAP),
-        },
-    };
-}
-function defaultHeaderGuideAlign(headerChannel, angle, anchor = 'middle') {
-    switch (anchor) {
-        case 'start':
-            return { align: 'left' };
-        case 'end':
-            return { align: 'right' };
-    }
-    const align = defaultLabelAlign(angle, headerChannel === 'row' ? 'left' : 'top', headerChannel === 'row' ? 'y' : 'x');
-    return align ? { align } : {};
-}
-function defaultHeaderGuideBaseline(angle, channel) {
-    const baseline = defaultLabelBaseline(angle, channel === 'row' ? 'left' : 'top', channel === 'row' ? 'y' : 'x', true);
-    return baseline ? { baseline } : {};
-}
-function assembleHeaderGroups(model, channel) {
-    const layoutHeader = model.component.layoutHeaders[channel];
-    const groups = [];
-    for (const headerType of HEADER_TYPES) {
-        if (layoutHeader[headerType]) {
-            for (const headerComponent of layoutHeader[headerType]) {
-                const group = assembleHeaderGroup(model, channel, headerType, layoutHeader, headerComponent);
-                if (group != null) {
-                    groups.push(group);
-                }
-            }
-        }
-    }
-    return groups;
-}
-function getSort$1(facetFieldDef, channel) {
-    const { sort } = facetFieldDef;
-    if (isSortField(sort)) {
-        return {
-            field: vgField(sort, { expr: 'datum' }),
-            order: sort.order ?? 'ascending',
-        };
-    }
-    else if (isArray(sort)) {
-        return {
-            field: sortArrayIndexField(facetFieldDef, channel, { expr: 'datum' }),
-            order: 'ascending',
-        };
-    }
-    else {
-        return {
-            field: vgField(facetFieldDef, { expr: 'datum' }),
-            order: sort ?? 'ascending',
-        };
-    }
-}
-function assembleLabelTitle(facetFieldDef, channel, config) {
-    const { format, formatType, labelAngle, labelAnchor, labelOrient, labelExpr } = getHeaderProperties(['format', 'formatType', 'labelAngle', 'labelAnchor', 'labelOrient', 'labelExpr'], facetFieldDef.header, config, channel);
-    const titleTextExpr = formatSignalRef({
-        fieldOrDatumDef: facetFieldDef,
-        format,
-        formatType,
-        expr: 'parent',
-        config,
-    }).signal;
-    const headerChannel = getHeaderChannel(channel, labelOrient);
-    return {
-        text: {
-            signal: labelExpr
-                ? replaceAll(replaceAll(labelExpr, 'datum.label', titleTextExpr), 'datum.value', vgField(facetFieldDef, { expr: 'parent' }))
-                : titleTextExpr,
-        },
-        ...(channel === 'row' ? { orient: 'left' } : {}),
-        style: 'guide-label',
-        frame: 'group',
-        ...defaultHeaderGuideBaseline(labelAngle, headerChannel),
-        ...defaultHeaderGuideAlign(headerChannel, labelAngle, labelAnchor),
-        ...assembleHeaderProperties(config, facetFieldDef, channel, HEADER_LABEL_PROPERTIES, HEADER_LABEL_PROPERTIES_MAP),
-    };
-}
-function assembleHeaderGroup(model, channel, headerType, layoutHeader, headerComponent) {
-    if (headerComponent) {
-        let title = null;
-        const { facetFieldDef } = layoutHeader;
-        const config = model.config ? model.config : undefined;
-        if (facetFieldDef && headerComponent.labels) {
-            const { labelOrient } = getHeaderProperties(['labelOrient'], facetFieldDef.header, config, channel);
-            // Include label title in the header if orient aligns with the channel
-            if ((channel === 'row' && !contains(['top', 'bottom'], labelOrient)) ||
-                (channel === 'column' && !contains(['left', 'right'], labelOrient))) {
-                title = assembleLabelTitle(facetFieldDef, channel, config);
-            }
-        }
-        const isFacetWithoutRowCol = isFacetModel(model) && !isFacetMapping(model.facet);
-        const axes = headerComponent.axes;
-        const hasAxes = axes?.length > 0;
-        if (title || hasAxes) {
-            const sizeChannel = channel === 'row' ? 'height' : 'width';
-            return {
-                name: model.getName(`${channel}_${headerType}`),
-                type: 'group',
-                role: `${channel}-${headerType}`,
-                ...(layoutHeader.facetFieldDef
-                    ? {
-                        from: { data: model.getName(`${channel}_domain`) },
-                        sort: getSort$1(facetFieldDef, channel),
-                    }
-                    : {}),
-                ...(hasAxes && isFacetWithoutRowCol
-                    ? {
-                        from: { data: model.getName(`facet_domain_${channel}`) },
-                    }
-                    : {}),
-                ...(title ? { title } : {}),
-                ...(headerComponent.sizeSignal
-                    ? {
-                        encode: {
-                            update: {
-                                [sizeChannel]: headerComponent.sizeSignal,
-                            },
-                        },
-                    }
-                    : {}),
-                ...(hasAxes ? { axes } : {}),
-            };
-        }
-    }
-    return null;
-}
-const LAYOUT_TITLE_BAND = {
-    column: {
-        start: 0,
-        end: 1,
-    },
-    row: {
-        start: 1,
-        end: 0,
-    },
-};
-function getLayoutTitleBand(titleAnchor, headerChannel) {
-    return LAYOUT_TITLE_BAND[headerChannel][titleAnchor];
-}
-function assembleLayoutTitleBand(headerComponentIndex, config) {
-    const titleBand = {};
-    for (const channel of FACET_CHANNELS) {
-        const headerComponent = headerComponentIndex[channel];
-        if (headerComponent?.facetFieldDef) {
-            const { titleAnchor, titleOrient } = getHeaderProperties(['titleAnchor', 'titleOrient'], headerComponent.facetFieldDef.header, config, channel);
-            const headerChannel = getHeaderChannel(channel, titleOrient);
-            const band = getLayoutTitleBand(titleAnchor, headerChannel);
-            if (band !== undefined) {
-                titleBand[headerChannel] = band;
-            }
-        }
-    }
-    return isEmpty(titleBand) ? undefined : titleBand;
-}
-function assembleHeaderProperties(config, facetFieldDef, channel, properties, propertiesMap) {
-    const props = {};
-    for (const prop of properties) {
-        if (!propertiesMap[prop]) {
-            continue;
-        }
-        const value = getHeaderProperty(prop, facetFieldDef?.header, config, channel);
-        if (value !== undefined) {
-            props[propertiesMap[prop]] = value;
-        }
-    }
-    return props;
-}
-
-function getSizeTypeFromLayoutSizeType(layoutSizeType) {
-    return layoutSizeType === 'childWidth' ? 'width' : layoutSizeType === 'childHeight' ? 'height' : layoutSizeType;
-}
-
-function assembleLayoutSignals(model) {
-    return [
-        ...sizeSignals(model, 'width'),
-        ...sizeSignals(model, 'height'),
-        ...sizeSignals(model, 'childWidth'),
-        ...sizeSignals(model, 'childHeight'),
-    ];
-}
-function sizeSignals(model, sizeType) {
-    const channel = sizeType === 'width' ? 'x' : 'y';
-    const size = model.component.layoutSize.get(sizeType);
-    const facetParent = getFacetModel(model);
-    if (size == null || (size === 'merged' && !facetParent)) {
-        return [];
-    }
-    // Read size signal name from name map, just in case it is the top-level size signal that got renamed.
-    const name = model.getSizeSignalRef(sizeType).signal;
-    if (facetParent?.hasExplicitSize(getSizeTypeFromLayoutSizeType(sizeType))) {
-        return [
-            {
-                name,
-                update: autosizedFacetExpr(facetParent, sizeType),
-            },
-        ];
-    }
-    else if (size === 'step') {
-        const scaleComponent = model.getScaleComponent(channel);
-        if (scaleComponent) {
-            const type = scaleComponent.get('type');
-            const range = scaleComponent.get('range');
-            if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
-                const scaleName = model.scaleName(channel);
-                if (isFacetModel(model.parent)) {
-                    // If parent is facet and this is an independent scale, return only signal signal
-                    // as the width/height will be calculated using the cardinality from
-                    // facet's aggregate rather than reading from scale domain
-                    const parentResolve = model.parent.component.resolve;
-                    if (parentResolve.scale[channel] === 'independent') {
-                        return [stepSignal(scaleName, range)];
-                    }
-                }
-                return [
-                    stepSignal(scaleName, range),
-                    {
-                        name,
-                        update: sizeExpr(scaleName, scaleComponent, `domain('${scaleName}').length`),
-                    },
-                ];
-            }
-        }
-        /* istanbul ignore next: Condition should not happen -- only for warning in development. */
-        throw new Error('layout size is step although width/height is not step.');
-    }
-    else if (size == 'container') {
-        const isWidth = name.endsWith('width');
-        const expr = isWidth ? 'containerSize()[0]' : 'containerSize()[1]';
-        const defaultValue = getViewConfigContinuousSize(model.config.view, isWidth ? 'width' : 'height');
-        const safeExpr = `isFinite(${expr}) ? ${expr} : ${defaultValue}`;
-        return [{ name, init: safeExpr, on: [{ update: safeExpr, events: 'window:resize' }] }];
-    }
-    else if (size !== 'merged') {
-        return [
-            {
-                name,
-                value: size,
-            },
-        ];
-    }
-    return [];
-}
-function stepSignal(scaleName, range) {
-    const name = `${scaleName}_step`;
-    if (isSignalRef(range.step)) {
-        return { name, update: range.step.signal };
-    }
-    else {
-        return { name, value: range.step };
-    }
-}
-function sizeExpr(scaleName, scaleComponent, cardinality) {
-    const type = scaleComponent.get('type');
-    const padding = scaleComponent.get('padding');
-    const paddingOuter = getFirstDefined(scaleComponent.get('paddingOuter'), padding);
-    let paddingInner = scaleComponent.get('paddingInner');
-    paddingInner =
-        type === 'band'
-            ? // only band has real paddingInner
-                paddingInner !== undefined
-                    ? paddingInner
-                    : padding
-            : // For point, as calculated in https://github.com/vega/vega-scale/blob/master/src/band.js#L128,
-                // it's equivalent to have paddingInner = 1 since there is only n-1 steps between n points.
-                1;
-    return `bandspace(${cardinality}, ${signalOrStringValue(paddingInner)}, ${signalOrStringValue(paddingOuter)}) * ${scaleName}_step`;
-}
-function autosizedFacetExpr(model, sizeType) {
-    const channel = sizeType === 'width' ? 'column' : 'row';
-    if (!model.facet[channel] && isFacetMapping(model.facet)) {
-        return sizeType;
-    }
-    if (!isFacetMapping(model.facet)) {
-        const cardinality = `length(data("facet_domain"))`;
-        const columns = model.layout.columns;
-        const domain = channel === 'row'
-            ? columns
-                ? `ceil(${cardinality} / ${model.layout.columns})`
-                : 1
-            : columns
-                ? `min(${cardinality}, ${model.layout.columns})`
-                : cardinality;
-        return `${sizeType} / ${domain}`;
-    }
-    const name = model.name ? `${model.name}_` : '';
-    const domain = `${name}${channel}_domain`;
-    return `${sizeType} / length(data('${domain}'))`;
-}
-
-function guideEncodeEntry(encoding, model) {
-    return keys(encoding).reduce((encode, channel) => {
-        return {
-            ...encode,
-            ...wrapCondition({
-                model,
-                channelDef: encoding[channel],
-                vgChannel: channel,
-                mainRefFn: (def) => signalOrValueRef(def.value),
-                invalidValueRef: undefined, // guide encoding won't show invalid values for the scale
-            }),
-        };
-    }, {});
-}
-
-function defaultScaleResolve(channel, model) {
-    if (isFacetModel(model)) {
-        return channel === 'theta' ? 'independent' : 'shared';
-    }
-    else if (isLayerModel(model)) {
-        return 'shared';
-    }
-    else if (isConcatModel(model)) {
-        return isXorY(channel) || channel === 'theta' || channel === 'radius' ? 'independent' : 'shared';
-    }
-    /* istanbul ignore next: should never reach here. */
-    throw new Error('invalid model type for resolve');
-}
-function parseGuideResolve(resolve, channel) {
-    const channelScaleResolve = resolve.scale[channel];
-    const guide = isXorY(channel) ? 'axis' : 'legend';
-    if (channelScaleResolve === 'independent') {
-        if (resolve[guide][channel] === 'shared') {
-            warn(independentScaleMeansIndependentGuide(channel));
-        }
-        return 'independent';
-    }
-    return resolve[guide][channel] || 'shared';
-}
-
-const LEGEND_COMPONENT_PROPERTY_INDEX = {
-    ...COMMON_LEGEND_PROPERTY_INDEX,
-    disable: 1,
-    labelExpr: 1,
-    selections: 1,
-    // channel scales
-    opacity: 1,
-    shape: 1,
-    stroke: 1,
-    fill: 1,
-    size: 1,
-    strokeWidth: 1,
-    strokeDash: 1,
-    // encode
-    encode: 1,
-};
-const LEGEND_COMPONENT_PROPERTIES = keys(LEGEND_COMPONENT_PROPERTY_INDEX);
-class LegendComponent extends Split {
-}
-
-const legendEncodeRules = {
-    symbols,
-    gradient,
-    labels: labels$1,
-    entries,
-};
-function symbols(symbolsSpec, { fieldOrDatumDef, model, channel, legendCmpt, legendType }) {
-    if (legendType !== 'symbol') {
-        return undefined;
-    }
-    const { markDef, encoding, config, mark } = model;
-    const filled = markDef.filled && mark !== 'trail';
-    let out = {
-        ...applyMarkConfig({}, model, FILL_STROKE_CONFIG),
-        ...color(model, { filled }),
-    }; // FIXME: remove this when VgEncodeEntry is compatible with SymbolEncodeEntry
-    const symbolOpacity = legendCmpt.get('symbolOpacity') ?? config.legend.symbolOpacity;
-    const symbolFillColor = legendCmpt.get('symbolFillColor') ?? config.legend.symbolFillColor;
-    const symbolStrokeColor = legendCmpt.get('symbolStrokeColor') ?? config.legend.symbolStrokeColor;
-    const opacity = symbolOpacity === undefined ? (getMaxValue(encoding.opacity) ?? markDef.opacity) : undefined;
-    if (out.fill) {
-        // for fill legend, we don't want any fill in symbol
-        if (channel === 'fill' || (filled && channel === COLOR)) {
-            delete out.fill;
-        }
-        else if (hasProperty(out.fill, 'field')) {
-            // For others, set fill to some opaque value (or nothing if a color is already set)
-            if (symbolFillColor) {
-                delete out.fill;
-            }
-            else {
-                out.fill = signalOrValueRef(config.legend.symbolBaseFillColor ?? 'black');
-                out.fillOpacity = signalOrValueRef(opacity ?? 1);
-            }
-        }
-        else if (isArray(out.fill)) {
-            const fill = getFirstConditionValue(encoding.fill ?? encoding.color) ?? markDef.fill ?? (filled && markDef.color);
-            if (fill) {
-                out.fill = signalOrValueRef(fill);
-            }
-        }
-    }
-    if (out.stroke) {
-        if (channel === 'stroke' || (!filled && channel === COLOR)) {
-            delete out.stroke;
-        }
-        else if (hasProperty(out.stroke, 'field') || symbolStrokeColor) {
-            // For others, remove stroke field
-            delete out.stroke;
-        }
-        else if (isArray(out.stroke)) {
-            const stroke = getFirstDefined(getFirstConditionValue(encoding.stroke || encoding.color), markDef.stroke, filled ? markDef.color : undefined);
-            if (stroke) {
-                out.stroke = { value: stroke };
-            }
-        }
-    }
-    if (channel !== OPACITY) {
-        const condition = isFieldDef(fieldOrDatumDef) && selectedCondition(model, legendCmpt, fieldOrDatumDef);
-        if (condition) {
-            out.opacity = [
-                { test: condition, ...signalOrValueRef(opacity ?? 1) },
-                signalOrValueRef(config.legend.unselectedOpacity),
-            ];
-        }
-        else if (opacity) {
-            out.opacity = signalOrValueRef(opacity);
-        }
-    }
-    out = { ...out, ...symbolsSpec };
-    return isEmpty(out) ? undefined : out;
-}
-function gradient(gradientSpec, { model, legendType, legendCmpt }) {
-    if (legendType !== 'gradient') {
-        return undefined;
-    }
-    const { config, markDef, encoding } = model;
-    let out = {};
-    const gradientOpacity = legendCmpt.get('gradientOpacity') ?? config.legend.gradientOpacity;
-    const opacity = gradientOpacity === undefined ? getMaxValue(encoding.opacity) || markDef.opacity : undefined;
-    if (opacity) {
-        // only apply opacity if it is neither zero or undefined
-        out.opacity = signalOrValueRef(opacity);
-    }
-    out = { ...out, ...gradientSpec };
-    return isEmpty(out) ? undefined : out;
-}
-function labels$1(specifiedlabelsSpec, { fieldOrDatumDef, model, channel, legendCmpt }) {
-    const legend = model.legend(channel) || {};
-    const config = model.config;
-    const condition = isFieldDef(fieldOrDatumDef) ? selectedCondition(model, legendCmpt, fieldOrDatumDef) : undefined;
-    const opacity = condition ? [{ test: condition, value: 1 }, { value: config.legend.unselectedOpacity }] : undefined;
-    const { format, formatType } = legend;
-    let text = undefined;
-    if (isCustomFormatType(formatType)) {
-        text = formatCustomType({
-            fieldOrDatumDef,
-            field: 'datum.value',
-            format,
-            formatType,
-            config,
-        });
-    }
-    else if (format === undefined && formatType === undefined && config.customFormatTypes) {
-        if (fieldOrDatumDef.type === 'quantitative' && config.numberFormatType) {
-            text = formatCustomType({
-                fieldOrDatumDef,
-                field: 'datum.value',
-                format: config.numberFormat,
-                formatType: config.numberFormatType,
-                config,
-            });
-        }
-        else if (fieldOrDatumDef.type === 'temporal' &&
-            config.timeFormatType &&
-            isFieldDef(fieldOrDatumDef) &&
-            fieldOrDatumDef.timeUnit === undefined) {
-            text = formatCustomType({
-                fieldOrDatumDef,
-                field: 'datum.value',
-                format: config.timeFormat,
-                formatType: config.timeFormatType,
-                config,
-            });
-        }
-    }
-    const labelsSpec = {
-        ...(opacity ? { opacity } : {}),
-        ...(text ? { text } : {}),
-        ...specifiedlabelsSpec,
-    };
-    return isEmpty(labelsSpec) ? undefined : labelsSpec;
-}
-function entries(entriesSpec, { legendCmpt }) {
-    const selections = legendCmpt.get('selections');
-    return selections?.length ? { ...entriesSpec, fill: { value: 'transparent' } } : entriesSpec;
-}
-function getMaxValue(channelDef) {
-    return getConditionValue(channelDef, (v, conditionalDef) => Math.max(v, conditionalDef.value));
-}
-function getFirstConditionValue(channelDef) {
-    return getConditionValue(channelDef, (v, conditionalDef) => {
-        return getFirstDefined(v, conditionalDef.value);
-    });
-}
-function getConditionValue(channelDef, reducer) {
-    if (hasConditionalValueDef(channelDef)) {
-        return array(channelDef.condition).reduce(reducer, channelDef.value);
-    }
-    else if (isValueDef(channelDef)) {
-        return channelDef.value;
-    }
-    return undefined;
-}
-function selectedCondition(model, legendCmpt, fieldDef) {
-    const selections = legendCmpt.get('selections');
-    if (!selections?.length)
-        return undefined;
-    const field = stringValue(fieldDef.field);
-    return selections
-        .map((name) => {
-        const store = stringValue(varName(name) + STORE);
-        return `(!length(data(${store})) || (${name}[${field}] && indexof(${name}[${field}], datum.value) >= 0))`;
-    })
-        .join(' || ');
-}
-
-const legendRules = {
-    direction: ({ direction }) => direction,
-    format: ({ fieldOrDatumDef, legend, config }) => {
-        const { format, formatType } = legend;
-        return guideFormat(fieldOrDatumDef, fieldOrDatumDef.type, format, formatType, config, false);
-    },
-    formatType: ({ legend, fieldOrDatumDef, scaleType }) => {
-        const { formatType } = legend;
-        return guideFormatType(formatType, fieldOrDatumDef, scaleType);
-    },
-    gradientLength: (params) => {
-        const { legend, legendConfig } = params;
-        return legend.gradientLength ?? legendConfig.gradientLength ?? defaultGradientLength(params);
-    },
-    labelOverlap: ({ legend, legendConfig, scaleType }) => legend.labelOverlap ?? legendConfig.labelOverlap ?? defaultLabelOverlap(scaleType),
-    symbolType: ({ legend, markDef, channel, encoding }) => legend.symbolType ?? defaultSymbolType(markDef.type, channel, encoding.shape, markDef.shape),
-    title: ({ fieldOrDatumDef, config }) => title(fieldOrDatumDef, config, { allowDisabling: true }),
-    type: ({ legendType, scaleType, channel }) => {
-        if (isColorChannel(channel) && isContinuousToContinuous(scaleType)) {
-            if (legendType === 'gradient') {
-                return undefined;
-            }
-        }
-        else if (legendType === 'symbol') {
-            return undefined;
-        }
-        return legendType;
-    }, // depended by other property, let's define upfront
-    values: ({ fieldOrDatumDef, legend }) => values(legend, fieldOrDatumDef),
-};
-function values(legend, fieldOrDatumDef) {
-    const vals = legend.values;
-    if (isArray(vals)) {
-        return valueArray(fieldOrDatumDef, vals);
-    }
-    else if (isSignalRef(vals)) {
-        return vals;
-    }
-    return undefined;
-}
-function defaultSymbolType(mark, channel, shapeChannelDef, markShape) {
-    if (channel !== 'shape') {
-        // use the value from the shape encoding or the mark config if they exist
-        const shape = getFirstConditionValue(shapeChannelDef) ?? markShape;
-        if (shape) {
-            return shape;
-        }
-    }
-    switch (mark) {
-        case 'bar':
-        case 'rect':
-        case 'image':
-        case 'square':
-            return 'square';
-        case 'line':
-        case 'trail':
-        case 'rule':
-            return 'stroke';
-        case 'arc':
-        case 'point':
-        case 'circle':
-        case 'tick':
-        case 'geoshape':
-        case 'area':
-        case 'text':
-            return 'circle';
-    }
-}
-function getLegendType(params) {
-    const { legend } = params;
-    return getFirstDefined(legend.type, defaultType$1(params));
-}
-function defaultType$1({ channel, timeUnit, scaleType, }) {
-    // Following the logic in https://github.com/vega/vega-parser/blob/master/src/parsers/legend.js
-    if (isColorChannel(channel)) {
-        if (contains(['quarter', 'month', 'day'], timeUnit)) {
-            return 'symbol';
-        }
-        if (isContinuousToContinuous(scaleType)) {
-            return 'gradient';
-        }
-    }
-    return 'symbol';
-}
-function getDirection({ legendConfig, legendType, orient, legend, }) {
-    return (legend.direction ??
-        legendConfig[legendType ? 'gradientDirection' : 'symbolDirection'] ??
-        defaultDirection(orient, legendType));
-}
-function defaultDirection(orient, legendType) {
-    switch (orient) {
-        case 'top':
-        case 'bottom':
-            return 'horizontal';
-        case 'left':
-        case 'right':
-        case 'none':
-        case undefined: // undefined = "right" in Vega
-            return undefined; // vertical is Vega's default
-        default:
-            // top-left / ...
-            // For inner legend, uses compact layout like Tableau
-            return legendType === 'gradient' ? 'horizontal' : undefined;
-    }
-}
-function defaultGradientLength({ legendConfig, model, direction, orient, scaleType, }) {
-    const { gradientHorizontalMaxLength, gradientHorizontalMinLength, gradientVerticalMaxLength, gradientVerticalMinLength, } = legendConfig;
-    if (isContinuousToContinuous(scaleType)) {
-        if (direction === 'horizontal') {
-            if (orient === 'top' || orient === 'bottom') {
-                return gradientLengthSignal(model, 'width', gradientHorizontalMinLength, gradientHorizontalMaxLength);
-            }
-            else {
-                return gradientHorizontalMinLength;
-            }
-        }
-        else {
-            // vertical / undefined (Vega uses vertical by default)
-            return gradientLengthSignal(model, 'height', gradientVerticalMinLength, gradientVerticalMaxLength);
-        }
-    }
-    return undefined;
-}
-function gradientLengthSignal(model, sizeType, min, max) {
-    const sizeSignal = model.getSizeSignalRef(sizeType).signal;
-    return { signal: `clamp(${sizeSignal}, ${min}, ${max})` };
-}
-function defaultLabelOverlap(scaleType) {
-    if (contains(['quantile', 'threshold', 'log', 'symlog'], scaleType)) {
-        return 'greedy';
-    }
-    return undefined;
-}
-
-function parseLegend(model) {
-    const legendComponent = isUnitModel(model) ? parseUnitLegend(model) : parseNonUnitLegend(model);
-    model.component.legends = legendComponent;
-    return legendComponent;
-}
-function parseUnitLegend(model) {
-    const { encoding } = model;
-    const legendComponent = {};
-    for (const channel of [COLOR, ...LEGEND_SCALE_CHANNELS]) {
-        const def = getFieldOrDatumDef(encoding[channel]);
-        if (!def || !model.getScaleComponent(channel)) {
-            continue;
-        }
-        if (channel === SHAPE && isFieldDef(def) && def.type === GEOJSON) {
-            continue;
-        }
-        legendComponent[channel] = parseLegendForChannel(model, channel);
-    }
-    return legendComponent;
-}
-function getLegendDefWithScale(model, channel) {
-    const scale = model.scaleName(channel);
-    if (model.mark === 'trail') {
-        if (channel === 'color') {
-            // trail is a filled mark, but its default symbolType ("stroke") should use "stroke"
-            return { stroke: scale };
-        }
-        else if (channel === 'size') {
-            return { strokeWidth: scale };
-        }
-    }
-    if (channel === 'color') {
-        return model.markDef.filled ? { fill: scale } : { stroke: scale };
-    }
-    return { [channel]: scale };
-}
-function isExplicit$1(value, property, legend, fieldDef) {
-    switch (property) {
-        case 'disable':
-            return legend !== undefined; // if axis is specified or null/false, then its enable/disable state is explicit
-        case 'values':
-            // specified legend.values is already respected, but may get transformed.
-            return !!legend?.values;
-        case 'title':
-            // title can be explicit if fieldDef.title is set
-            if (property === 'title' && value === fieldDef?.title) {
-                return true;
-            }
-    }
-    // Otherwise, things are explicit if the returned value matches the specified property
-    return value === (legend || {})[property];
-}
-function parseLegendForChannel(model, channel) {
-    let legend = model.legend(channel);
-    const { markDef, encoding, config } = model;
-    const legendConfig = config.legend;
-    const legendCmpt = new LegendComponent({}, getLegendDefWithScale(model, channel));
-    parseInteractiveLegend(model, channel, legendCmpt);
-    const disable = legend !== undefined ? !legend : legendConfig.disable;
-    legendCmpt.set('disable', disable, legend !== undefined);
-    if (disable) {
-        return legendCmpt;
-    }
-    legend = legend || {};
-    const scaleType = model.getScaleComponent(channel).get('type');
-    const fieldOrDatumDef = getFieldOrDatumDef(encoding[channel]);
-    const timeUnit = isFieldDef(fieldOrDatumDef) ? normalizeTimeUnit(fieldOrDatumDef.timeUnit)?.unit : undefined;
-    const orient = legend.orient || config.legend.orient || 'right';
-    const legendType = getLegendType({ legend, channel, timeUnit, scaleType });
-    const direction = getDirection({ legend, legendType, orient, legendConfig });
-    const ruleParams = {
-        legend,
-        channel,
-        model,
-        markDef,
-        encoding,
-        fieldOrDatumDef,
-        legendConfig,
-        config,
-        scaleType,
-        orient,
-        legendType,
-        direction,
-    };
-    for (const property of LEGEND_COMPONENT_PROPERTIES) {
-        if ((legendType === 'gradient' && property.startsWith('symbol')) ||
-            (legendType === 'symbol' && property.startsWith('gradient'))) {
-            continue;
-        }
-        const value = property in legendRules ? legendRules[property](ruleParams) : legend[property];
-        if (value !== undefined) {
-            const explicit = isExplicit$1(value, property, legend, model.fieldDef(channel));
-            if (explicit || config.legend[property] === undefined) {
-                legendCmpt.set(property, value, explicit);
-            }
-        }
-    }
-    const legendEncoding = legend?.encoding ?? {};
-    const selections = legendCmpt.get('selections');
-    const legendEncode = {};
-    const legendEncodeParams = { fieldOrDatumDef, model, channel, legendCmpt, legendType };
-    for (const part of ['labels', 'legend', 'title', 'symbols', 'gradient', 'entries']) {
-        // FIXME: remove as any (figure out what legendEncoding.entries is)
-        const legendEncodingPart = guideEncodeEntry(legendEncoding[part] ?? {}, model);
-        const value = part in legendEncodeRules
-            ? legendEncodeRules[part](legendEncodingPart, legendEncodeParams) // apply rule
-            : legendEncodingPart; // no rule -- just default values
-        if (value !== undefined && !isEmpty(value)) {
-            legendEncode[part] = {
-                ...(selections?.length && isFieldDef(fieldOrDatumDef)
-                    ? { name: `${varName(fieldOrDatumDef.field)}_legend_${part}` }
-                    : {}),
-                ...(selections?.length ? { interactive: true } : {}),
-                update: selections?.length ? { ...value, cursor: { value: 'pointer' } } : value,
-            };
-        }
-    }
-    if (!isEmpty(legendEncode)) {
-        legendCmpt.set('encode', legendEncode, !!legend?.encoding);
-    }
-    return legendCmpt;
-}
-function parseNonUnitLegend(model) {
-    const { legends, resolve } = model.component;
-    for (const child of model.children) {
-        parseLegend(child);
-        for (const channel of keys(child.component.legends)) {
-            resolve.legend[channel] = parseGuideResolve(model.component.resolve, channel);
-            if (resolve.legend[channel] === 'shared') {
-                // If the resolve says shared (and has not been overridden)
-                // We will try to merge and see if there is a conflict
-                legends[channel] = mergeLegendComponent(legends[channel], child.component.legends[channel]);
-                if (!legends[channel]) {
-                    // If merge returns nothing, there is a conflict so we cannot make the legend shared.
-                    // Thus, mark legend as independent and remove the legend component.
-                    resolve.legend[channel] = 'independent';
-                    delete legends[channel];
-                }
-            }
-        }
-    }
-    for (const channel of keys(legends)) {
-        for (const child of model.children) {
-            if (!child.component.legends[channel]) {
-                // skip if the child does not have a particular legend
-                continue;
-            }
-            if (resolve.legend[channel] === 'shared') {
-                // After merging shared legend, make sure to remove legend from child
-                delete child.component.legends[channel];
-            }
-        }
-    }
-    return legends;
-}
-function mergeLegendComponent(mergedLegend, childLegend) {
-    if (!mergedLegend) {
-        return childLegend.clone();
-    }
-    const mergedOrient = mergedLegend.getWithExplicit('orient');
-    const childOrient = childLegend.getWithExplicit('orient');
-    if (mergedOrient.explicit && childOrient.explicit && mergedOrient.value !== childOrient.value) {
-        // TODO: throw warning if resolve is explicit (We don't have info about explicit/implicit resolve yet.)
-        // Cannot merge due to inconsistent orient
-        return undefined;
-    }
-    let typeMerged = false;
-    // Otherwise, let's merge
-    for (const prop of LEGEND_COMPONENT_PROPERTIES) {
-        const mergedValueWithExplicit = mergeValuesWithExplicit(mergedLegend.getWithExplicit(prop), childLegend.getWithExplicit(prop), prop, 'legend', 
-        // Tie breaker function
-        (v1, v2) => {
-            switch (prop) {
-                case 'symbolType':
-                    return mergeSymbolType(v1, v2);
-                case 'title':
-                    return mergeTitleComponent(v1, v2);
-                case 'type':
-                    // There are only two types. If we have different types, then prefer symbol over gradient.
-                    typeMerged = true;
-                    return makeImplicit('symbol');
-            }
-            return defaultTieBreaker(v1, v2, prop, 'legend');
-        });
-        mergedLegend.setWithExplicit(prop, mergedValueWithExplicit);
-    }
-    if (typeMerged) {
-        if (mergedLegend.implicit?.encode?.gradient) {
-            deleteNestedProperty(mergedLegend.implicit, ['encode', 'gradient']);
-        }
-        if (mergedLegend.explicit?.encode?.gradient) {
-            deleteNestedProperty(mergedLegend.explicit, ['encode', 'gradient']);
-        }
-    }
-    return mergedLegend;
-}
-function mergeSymbolType(st1, st2) {
-    if (st2.value === 'circle') {
-        // prefer "circle" over "stroke"
-        return st2;
-    }
-    return st1;
-}
 
 function rangeFormula(model, fieldDef, channel, config) {
     if (binRequiresRange(fieldDef, channel)) {
@@ -12812,234 +11907,6 @@ class AggregateNode extends DataFlowNode {
             as,
         };
         return result;
-    }
-}
-
-/**
- * A node that helps us track what fields we are faceting by.
- */
-class FacetNode extends DataFlowNode {
-    model;
-    name;
-    data;
-    column;
-    row;
-    facet;
-    childModel;
-    /**
-     * @param model The facet model.
-     * @param name The name that this facet source will have.
-     * @param data The source data for this facet data.
-     */
-    constructor(parent, model, name, data) {
-        super(parent);
-        this.model = model;
-        this.name = name;
-        this.data = data;
-        for (const channel of FACET_CHANNELS) {
-            const fieldDef = model.facet[channel];
-            if (fieldDef) {
-                const { bin, sort } = fieldDef;
-                this[channel] = {
-                    name: model.getName(`${channel}_domain`),
-                    fields: [vgField(fieldDef), ...(isBinning(bin) ? [vgField(fieldDef, { binSuffix: 'end' })] : [])],
-                    ...(isSortField(sort)
-                        ? { sortField: sort }
-                        : isArray(sort)
-                            ? { sortIndexField: sortArrayIndexField(fieldDef, channel) }
-                            : {}),
-                };
-            }
-        }
-        this.childModel = model.child;
-    }
-    hash() {
-        let out = `Facet`;
-        for (const channel of FACET_CHANNELS) {
-            if (this[channel]) {
-                out += ` ${channel.charAt(0)}:${hash(this[channel])}`;
-            }
-        }
-        return out;
-    }
-    get fields() {
-        const f = [];
-        for (const channel of FACET_CHANNELS) {
-            if (this[channel]?.fields) {
-                f.push(...this[channel].fields);
-            }
-        }
-        return f;
-    }
-    dependentFields() {
-        const depFields = new Set(this.fields);
-        for (const channel of FACET_CHANNELS) {
-            if (this[channel]) {
-                if (this[channel].sortField) {
-                    depFields.add(this[channel].sortField.field);
-                }
-                if (this[channel].sortIndexField) {
-                    depFields.add(this[channel].sortIndexField);
-                }
-            }
-        }
-        return depFields;
-    }
-    producedFields() {
-        return new Set(); // facet does not produce any new fields
-    }
-    /**
-     * The name to reference this source is its name.
-     */
-    getSource() {
-        return this.name;
-    }
-    getChildIndependentFieldsWithStep() {
-        const childIndependentFieldsWithStep = {};
-        for (const channel of POSITION_SCALE_CHANNELS) {
-            const childScaleComponent = this.childModel.component.scales[channel];
-            if (childScaleComponent && !childScaleComponent.merged) {
-                // independent scale
-                const type = childScaleComponent.get('type');
-                const range = childScaleComponent.get('range');
-                if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
-                    const domain = assembleDomain(this.childModel, channel);
-                    const field = getFieldFromDomain(domain);
-                    if (field) {
-                        childIndependentFieldsWithStep[channel] = field;
-                    }
-                    else {
-                        warn(unknownField(channel));
-                    }
-                }
-            }
-        }
-        return childIndependentFieldsWithStep;
-    }
-    assembleRowColumnHeaderData(channel, crossedDataName, childIndependentFieldsWithStep) {
-        const childChannel = { row: 'y', column: 'x', facet: undefined }[channel];
-        const fields = [];
-        const ops = [];
-        const as = [];
-        if (childChannel && childIndependentFieldsWithStep && childIndependentFieldsWithStep[childChannel]) {
-            if (crossedDataName) {
-                // If there is a crossed data, calculate max
-                fields.push(`distinct_${childIndependentFieldsWithStep[childChannel]}`);
-                ops.push('max');
-            }
-            else {
-                // If there is no crossed data, just calculate distinct
-                fields.push(childIndependentFieldsWithStep[childChannel]);
-                ops.push('distinct');
-            }
-            // Although it is technically a max, just name it distinct so it's easier to refer to it
-            as.push(`distinct_${childIndependentFieldsWithStep[childChannel]}`);
-        }
-        const { sortField, sortIndexField } = this[channel];
-        if (sortField) {
-            const { op = DEFAULT_SORT_OP, field } = sortField;
-            fields.push(field);
-            ops.push(op);
-            as.push(vgField(sortField, { forAs: true }));
-        }
-        else if (sortIndexField) {
-            fields.push(sortIndexField);
-            ops.push('max');
-            as.push(sortIndexField);
-        }
-        return {
-            name: this[channel].name,
-            // Use data from the crossed one if it exist
-            source: crossedDataName ?? this.data,
-            transform: [
-                {
-                    type: 'aggregate',
-                    groupby: this[channel].fields,
-                    ...(fields.length
-                        ? {
-                            fields,
-                            ops,
-                            as,
-                        }
-                        : {}),
-                },
-            ],
-        };
-    }
-    assembleFacetHeaderData(childIndependentFieldsWithStep) {
-        const { columns } = this.model.layout;
-        const { layoutHeaders } = this.model.component;
-        const data = [];
-        const hasSharedAxis = {};
-        for (const headerChannel of HEADER_CHANNELS) {
-            for (const headerType of HEADER_TYPES) {
-                const headers = layoutHeaders[headerChannel]?.[headerType] ?? [];
-                for (const header of headers) {
-                    if (header.axes?.length > 0) {
-                        hasSharedAxis[headerChannel] = true;
-                        break;
-                    }
-                }
-            }
-            if (hasSharedAxis[headerChannel]) {
-                const cardinality = `length(data("${this.facet.name}"))`;
-                const stop = headerChannel === 'row'
-                    ? columns
-                        ? { signal: `ceil(${cardinality} / ${columns})` }
-                        : 1
-                    : columns
-                        ? { signal: `min(${cardinality}, ${columns})` }
-                        : { signal: cardinality };
-                data.push({
-                    name: `${this.facet.name}_${headerChannel}`,
-                    transform: [
-                        {
-                            type: 'sequence',
-                            start: 0,
-                            stop,
-                        },
-                    ],
-                });
-            }
-        }
-        data.unshift(this.assembleRowColumnHeaderData('facet', null, childIndependentFieldsWithStep));
-        return data;
-    }
-    assemble() {
-        const data = [];
-        let crossedDataName = null;
-        const childIndependentFieldsWithStep = this.getChildIndependentFieldsWithStep();
-        const { column, row, facet } = this;
-        if (column && row && (childIndependentFieldsWithStep.x || childIndependentFieldsWithStep.y)) {
-            // Need to create a cross dataset to correctly calculate cardinality
-            crossedDataName = `cross_${this.column.name}_${this.row.name}`;
-            const fields = [].concat(childIndependentFieldsWithStep.x ?? [], childIndependentFieldsWithStep.y ?? []);
-            const ops = fields.map(() => 'distinct');
-            data.push({
-                name: crossedDataName,
-                source: this.data,
-                transform: [
-                    {
-                        type: 'aggregate',
-                        groupby: this.fields,
-                        fields,
-                        ops,
-                    },
-                ],
-            });
-        }
-        for (const channel of [COLUMN, ROW]) {
-            if (this[channel]) {
-                data.push(this.assembleRowColumnHeaderData(channel, crossedDataName, childIndependentFieldsWithStep));
-            }
-        }
-        if (facet) {
-            const facetData = this.assembleFacetHeaderData(childIndependentFieldsWithStep);
-            if (facetData) {
-                data.push(...facetData);
-            }
-        }
-        return data;
     }
 }
 
@@ -14455,6 +13322,31 @@ function optimizeDataflow(data, model) {
     }
 }
 
+function defaultScaleResolve(channel, model) {
+    if (isFacetModel(model)) {
+        return channel === 'theta' ? 'independent' : 'shared';
+    }
+    else if (isLayerModel(model)) {
+        return 'shared';
+    }
+    else if (isConcatModel(model)) {
+        return isXorY(channel) || channel === 'theta' || channel === 'radius' ? 'independent' : 'shared';
+    }
+    /* istanbul ignore next: should never reach here. */
+    throw new Error('invalid model type for resolve');
+}
+function parseGuideResolve(resolve, channel) {
+    const channelScaleResolve = resolve.scale[channel];
+    const guide = isXorY(channel) ? 'axis' : 'legend';
+    if (channelScaleResolve === 'independent') {
+        if (resolve[guide][channel] === 'shared') {
+            warn(independentScaleMeansIndependentGuide(channel));
+        }
+        return 'independent';
+    }
+    return resolve[guide][channel] || 'shared';
+}
+
 /**
  * A class that behaves like a SignalRef but lazily generates the signal.
  * The provided generator function should use `Model.getSignalName` to use the correct signal name.
@@ -15011,6 +13903,1141 @@ function assembleDomain(model, channel) {
     });
     // domains is an array that has to be merged into a single vega domain
     return mergeDomains(domains);
+}
+
+/**
+ * The key a crossed facet's headers and rank scale both sort by. It has no escapes:
+ * Vega before 6.3 named a domain sort's aggregate after the escaped field reference,
+ * so a dotted name never matched.
+ */
+function rankSortKey(channel) {
+    return `${channel}_rank_key`;
+}
+/**
+ * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
+ * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
+ * so it would sort first and shift every later cell out from under its header. Its
+ * groupby values survive, so each cell instead takes its header's place in a scale
+ * over the header domain, sorted as the headers are.
+ */
+function rankedChannels(facet) {
+    const { row, column } = facet;
+    if (!row || !column) {
+        return [];
+    }
+    return [ROW, COLUMN].filter((channel) => isSortField(facet[channel].sort) || isArray(facet[channel].sort));
+}
+/**
+ * A node that helps us track what fields we are faceting by.
+ */
+class FacetNode extends DataFlowNode {
+    model;
+    name;
+    data;
+    column;
+    row;
+    facet;
+    childModel;
+    /**
+     * @param model The facet model.
+     * @param name The name that this facet source will have.
+     * @param data The source data for this facet data.
+     */
+    constructor(parent, model, name, data) {
+        super(parent);
+        this.model = model;
+        this.name = name;
+        this.data = data;
+        for (const channel of FACET_CHANNELS) {
+            const fieldDef = model.facet[channel];
+            if (fieldDef) {
+                const { bin, sort } = fieldDef;
+                this[channel] = {
+                    name: model.getName(`${channel}_domain`),
+                    fields: [vgField(fieldDef), ...(isBinning(bin) ? [vgField(fieldDef, { binSuffix: 'end' })] : [])],
+                    ...(isSortField(sort)
+                        ? { sortField: sort }
+                        : isArray(sort)
+                            ? { sortIndexField: sortArrayIndexField(fieldDef, channel) }
+                            : {}),
+                };
+            }
+        }
+        this.childModel = model.child;
+    }
+    hash() {
+        let out = `Facet`;
+        for (const channel of FACET_CHANNELS) {
+            if (this[channel]) {
+                out += ` ${channel.charAt(0)}:${hash(this[channel])}`;
+            }
+        }
+        return out;
+    }
+    get fields() {
+        const f = [];
+        for (const channel of FACET_CHANNELS) {
+            if (this[channel]?.fields) {
+                f.push(...this[channel].fields);
+            }
+        }
+        return f;
+    }
+    dependentFields() {
+        const depFields = new Set(this.fields);
+        for (const channel of FACET_CHANNELS) {
+            if (this[channel]) {
+                if (this[channel].sortField) {
+                    depFields.add(this[channel].sortField.field);
+                }
+                if (this[channel].sortIndexField) {
+                    depFields.add(this[channel].sortIndexField);
+                }
+            }
+        }
+        return depFields;
+    }
+    producedFields() {
+        return new Set(); // facet does not produce any new fields
+    }
+    /**
+     * The name to reference this source is its name.
+     */
+    getSource() {
+        return this.name;
+    }
+    getChildIndependentFieldsWithStep() {
+        const childIndependentFieldsWithStep = {};
+        for (const channel of POSITION_SCALE_CHANNELS) {
+            const childScaleComponent = this.childModel.component.scales[channel];
+            if (childScaleComponent && !childScaleComponent.merged) {
+                // independent scale
+                const type = childScaleComponent.get('type');
+                const range = childScaleComponent.get('range');
+                if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
+                    const domain = assembleDomain(this.childModel, channel);
+                    const field = getFieldFromDomain(domain);
+                    if (field) {
+                        childIndependentFieldsWithStep[channel] = field;
+                    }
+                    else {
+                        warn(unknownField(channel));
+                    }
+                }
+            }
+        }
+        return childIndependentFieldsWithStep;
+    }
+    assembleRowColumnHeaderData(channel, crossedDataName, childIndependentFieldsWithStep) {
+        const childChannel = { row: 'y', column: 'x', facet: undefined }[channel];
+        const fields = [];
+        const ops = [];
+        const as = [];
+        if (childChannel && childIndependentFieldsWithStep && childIndependentFieldsWithStep[childChannel]) {
+            if (crossedDataName) {
+                // If there is a crossed data, calculate max
+                fields.push(`distinct_${childIndependentFieldsWithStep[childChannel]}`);
+                ops.push('max');
+            }
+            else {
+                // If there is no crossed data, just calculate distinct
+                fields.push(childIndependentFieldsWithStep[childChannel]);
+                ops.push('distinct');
+            }
+            // Although it is technically a max, just name it distinct so it's easier to refer to it
+            as.push(`distinct_${childIndependentFieldsWithStep[childChannel]}`);
+        }
+        const { sortField, sortIndexField } = this[channel];
+        const sort = sortField
+            ? { field: sortField.field, op: sortField.op ?? DEFAULT_SORT_OP, as: vgField(sortField, { forAs: true }) }
+            : sortIndexField
+                ? { field: sortIndexField, op: 'max', as: sortArrayIndexField(this.model.facet[channel], channel, { forAs: true }) }
+                : undefined;
+        if (sort) {
+            fields.push(sort.field);
+            ops.push(sort.op);
+            as.push(rankedChannels(this.model.facet).includes(channel) ? rankSortKey(channel) : sort.as);
+        }
+        return {
+            name: this[channel].name,
+            // Use data from the crossed one if it exist
+            source: crossedDataName ?? this.data,
+            transform: [
+                {
+                    type: 'aggregate',
+                    groupby: this[channel].fields,
+                    ...(fields.length
+                        ? {
+                            fields,
+                            ops,
+                            as,
+                        }
+                        : {}),
+                },
+            ],
+        };
+    }
+    assembleFacetHeaderData(childIndependentFieldsWithStep) {
+        const { columns } = this.model.layout;
+        const { layoutHeaders } = this.model.component;
+        const data = [];
+        const hasSharedAxis = {};
+        for (const headerChannel of HEADER_CHANNELS) {
+            for (const headerType of HEADER_TYPES) {
+                const headers = layoutHeaders[headerChannel]?.[headerType] ?? [];
+                for (const header of headers) {
+                    if (header.axes?.length > 0) {
+                        hasSharedAxis[headerChannel] = true;
+                        break;
+                    }
+                }
+            }
+            if (hasSharedAxis[headerChannel]) {
+                const cardinality = `length(data("${this.facet.name}"))`;
+                const stop = headerChannel === 'row'
+                    ? columns
+                        ? { signal: `ceil(${cardinality} / ${columns})` }
+                        : 1
+                    : columns
+                        ? { signal: `min(${cardinality}, ${columns})` }
+                        : { signal: cardinality };
+                data.push({
+                    name: `${this.facet.name}_${headerChannel}`,
+                    transform: [
+                        {
+                            type: 'sequence',
+                            start: 0,
+                            stop,
+                        },
+                    ],
+                });
+            }
+        }
+        data.unshift(this.assembleRowColumnHeaderData('facet', null, childIndependentFieldsWithStep));
+        return data;
+    }
+    assemble() {
+        const data = [];
+        let crossedDataName = null;
+        const childIndependentFieldsWithStep = this.getChildIndependentFieldsWithStep();
+        const { column, row, facet } = this;
+        if (column && row && (childIndependentFieldsWithStep.x || childIndependentFieldsWithStep.y)) {
+            // Need to create a cross dataset to correctly calculate cardinality
+            crossedDataName = `cross_${this.column.name}_${this.row.name}`;
+            const fields = [].concat(childIndependentFieldsWithStep.x ?? [], childIndependentFieldsWithStep.y ?? []);
+            const ops = fields.map(() => 'distinct');
+            data.push({
+                name: crossedDataName,
+                source: this.data,
+                transform: [
+                    {
+                        type: 'aggregate',
+                        groupby: this.fields,
+                        fields,
+                        ops,
+                    },
+                ],
+            });
+        }
+        for (const channel of [COLUMN, ROW]) {
+            if (this[channel]) {
+                data.push(this.assembleRowColumnHeaderData(channel, crossedDataName, childIndependentFieldsWithStep));
+            }
+        }
+        if (facet) {
+            const facetData = this.assembleFacetHeaderData(childIndependentFieldsWithStep);
+            if (facetData) {
+                data.push(...facetData);
+            }
+        }
+        return data;
+    }
+}
+
+/**
+ * Get header channel, which can be different from facet channel when orient is specified or when the facet channel is facet.
+ */
+function getHeaderChannel(channel, orient) {
+    if (contains(['top', 'bottom'], orient)) {
+        return 'column';
+    }
+    else if (contains(['left', 'right'], orient)) {
+        return 'row';
+    }
+    return channel === 'row' ? 'row' : 'column';
+}
+function getHeaderProperty(prop, header, config, channel) {
+    const headerSpecificConfig = channel === 'row' ? config.headerRow : channel === 'column' ? config.headerColumn : config.headerFacet;
+    return getFirstDefined((header || {})[prop], headerSpecificConfig[prop], config.header[prop]);
+}
+function getHeaderProperties(properties, header, config, channel) {
+    const props = {};
+    for (const prop of properties) {
+        const value = getHeaderProperty(prop, header || {}, config, channel);
+        if (value !== undefined) {
+            props[prop] = value;
+        }
+    }
+    return props;
+}
+
+/**
+ * Utility for generating row / column headers
+ */
+// TODO: rename to assembleHeaderTitleGroup
+function assembleTitleGroup(model, channel) {
+    const title = model.component.layoutHeaders[channel].title;
+    const config = model.config ? model.config : undefined;
+    const facetFieldDef = model.component.layoutHeaders[channel].facetFieldDef
+        ? model.component.layoutHeaders[channel].facetFieldDef
+        : undefined;
+    const { titleAnchor, titleAngle: ta, titleOrient, } = getHeaderProperties(['titleAnchor', 'titleAngle', 'titleOrient'], facetFieldDef.header, config, channel);
+    const headerChannel = getHeaderChannel(channel, titleOrient);
+    const titleAngle = normalizeAngle(ta);
+    return {
+        name: `${channel}-title`,
+        type: 'group',
+        role: `${headerChannel}-title`,
+        title: {
+            text: title,
+            ...(channel === 'row' ? { orient: 'left' } : {}),
+            style: 'guide-title',
+            ...defaultHeaderGuideBaseline(titleAngle, headerChannel),
+            ...defaultHeaderGuideAlign(headerChannel, titleAngle, titleAnchor),
+            ...assembleHeaderProperties(config, facetFieldDef, channel, HEADER_TITLE_PROPERTIES, HEADER_TITLE_PROPERTIES_MAP),
+        },
+    };
+}
+function defaultHeaderGuideAlign(headerChannel, angle, anchor = 'middle') {
+    switch (anchor) {
+        case 'start':
+            return { align: 'left' };
+        case 'end':
+            return { align: 'right' };
+    }
+    const align = defaultLabelAlign(angle, headerChannel === 'row' ? 'left' : 'top', headerChannel === 'row' ? 'y' : 'x');
+    return align ? { align } : {};
+}
+function defaultHeaderGuideBaseline(angle, channel) {
+    const baseline = defaultLabelBaseline(angle, channel === 'row' ? 'left' : 'top', channel === 'row' ? 'y' : 'x', true);
+    return baseline ? { baseline } : {};
+}
+function assembleHeaderGroups(model, channel) {
+    const layoutHeader = model.component.layoutHeaders[channel];
+    const groups = [];
+    for (const headerType of HEADER_TYPES) {
+        if (layoutHeader[headerType]) {
+            for (const headerComponent of layoutHeader[headerType]) {
+                const group = assembleHeaderGroup(model, channel, headerType, layoutHeader, headerComponent);
+                if (group != null) {
+                    groups.push(group);
+                }
+            }
+        }
+    }
+    return groups;
+}
+function getSort$1(facetFieldDef, channel, ranked) {
+    const { sort } = facetFieldDef;
+    if (ranked) {
+        return {
+            field: `datum[${stringValue(rankSortKey(channel))}]`,
+            order: (isSortField(sort) && sort.order) || 'ascending',
+        };
+    }
+    else if (isSortField(sort)) {
+        return {
+            field: vgField(sort, { expr: 'datum' }),
+            order: sort.order ?? 'ascending',
+        };
+    }
+    else if (isArray(sort)) {
+        return {
+            field: sortArrayIndexField(facetFieldDef, channel, { expr: 'datum' }),
+            order: 'ascending',
+        };
+    }
+    else {
+        return {
+            field: vgField(facetFieldDef, { expr: 'datum' }),
+            order: sort ?? 'ascending',
+        };
+    }
+}
+function assembleLabelTitle(facetFieldDef, channel, config) {
+    const { format, formatType, labelAngle, labelAnchor, labelOrient, labelExpr } = getHeaderProperties(['format', 'formatType', 'labelAngle', 'labelAnchor', 'labelOrient', 'labelExpr'], facetFieldDef.header, config, channel);
+    const titleTextExpr = formatSignalRef({
+        fieldOrDatumDef: facetFieldDef,
+        format,
+        formatType,
+        expr: 'parent',
+        config,
+    }).signal;
+    const headerChannel = getHeaderChannel(channel, labelOrient);
+    return {
+        text: {
+            signal: labelExpr
+                ? replaceAll(replaceAll(labelExpr, 'datum.label', titleTextExpr), 'datum.value', vgField(facetFieldDef, { expr: 'parent' }))
+                : titleTextExpr,
+        },
+        ...(channel === 'row' ? { orient: 'left' } : {}),
+        style: 'guide-label',
+        frame: 'group',
+        ...defaultHeaderGuideBaseline(labelAngle, headerChannel),
+        ...defaultHeaderGuideAlign(headerChannel, labelAngle, labelAnchor),
+        ...assembleHeaderProperties(config, facetFieldDef, channel, HEADER_LABEL_PROPERTIES, HEADER_LABEL_PROPERTIES_MAP),
+    };
+}
+function assembleHeaderGroup(model, channel, headerType, layoutHeader, headerComponent) {
+    if (headerComponent) {
+        let title = null;
+        const { facetFieldDef } = layoutHeader;
+        const config = model.config ? model.config : undefined;
+        if (facetFieldDef && headerComponent.labels) {
+            const { labelOrient } = getHeaderProperties(['labelOrient'], facetFieldDef.header, config, channel);
+            // Include label title in the header if orient aligns with the channel
+            if ((channel === 'row' && !contains(['top', 'bottom'], labelOrient)) ||
+                (channel === 'column' && !contains(['left', 'right'], labelOrient))) {
+                title = assembleLabelTitle(facetFieldDef, channel, config);
+            }
+        }
+        const isFacetWithoutRowCol = isFacetModel(model) && !isFacetMapping(model.facet);
+        const axes = headerComponent.axes;
+        const hasAxes = axes?.length > 0;
+        if (title || hasAxes) {
+            const sizeChannel = channel === 'row' ? 'height' : 'width';
+            return {
+                name: model.getName(`${channel}_${headerType}`),
+                type: 'group',
+                role: `${channel}-${headerType}`,
+                ...(layoutHeader.facetFieldDef
+                    ? {
+                        from: { data: model.getName(`${channel}_domain`) },
+                        sort: getSort$1(facetFieldDef, channel, isFacetModel(model) && rankedChannels(model.facet).includes(channel)),
+                    }
+                    : {}),
+                ...(hasAxes && isFacetWithoutRowCol
+                    ? {
+                        from: { data: model.getName(`facet_domain_${channel}`) },
+                    }
+                    : {}),
+                ...(title ? { title } : {}),
+                ...(headerComponent.sizeSignal
+                    ? {
+                        encode: {
+                            update: {
+                                [sizeChannel]: headerComponent.sizeSignal,
+                            },
+                        },
+                    }
+                    : {}),
+                ...(hasAxes ? { axes } : {}),
+            };
+        }
+    }
+    return null;
+}
+const LAYOUT_TITLE_BAND = {
+    column: {
+        start: 0,
+        end: 1,
+    },
+    row: {
+        start: 1,
+        end: 0,
+    },
+};
+function getLayoutTitleBand(titleAnchor, headerChannel) {
+    return LAYOUT_TITLE_BAND[headerChannel][titleAnchor];
+}
+function assembleLayoutTitleBand(headerComponentIndex, config) {
+    const titleBand = {};
+    for (const channel of FACET_CHANNELS) {
+        const headerComponent = headerComponentIndex[channel];
+        if (headerComponent?.facetFieldDef) {
+            const { titleAnchor, titleOrient } = getHeaderProperties(['titleAnchor', 'titleOrient'], headerComponent.facetFieldDef.header, config, channel);
+            const headerChannel = getHeaderChannel(channel, titleOrient);
+            const band = getLayoutTitleBand(titleAnchor, headerChannel);
+            if (band !== undefined) {
+                titleBand[headerChannel] = band;
+            }
+        }
+    }
+    return isEmpty(titleBand) ? undefined : titleBand;
+}
+function assembleHeaderProperties(config, facetFieldDef, channel, properties, propertiesMap) {
+    const props = {};
+    for (const prop of properties) {
+        if (!propertiesMap[prop]) {
+            continue;
+        }
+        const value = getHeaderProperty(prop, facetFieldDef?.header, config, channel);
+        if (value !== undefined) {
+            props[propertiesMap[prop]] = value;
+        }
+    }
+    return props;
+}
+
+function getSizeTypeFromLayoutSizeType(layoutSizeType) {
+    return layoutSizeType === 'childWidth' ? 'width' : layoutSizeType === 'childHeight' ? 'height' : layoutSizeType;
+}
+
+function assembleLayoutSignals(model) {
+    return [
+        ...sizeSignals(model, 'width'),
+        ...sizeSignals(model, 'height'),
+        ...sizeSignals(model, 'childWidth'),
+        ...sizeSignals(model, 'childHeight'),
+    ];
+}
+function sizeSignals(model, sizeType) {
+    const channel = sizeType === 'width' ? 'x' : 'y';
+    const size = model.component.layoutSize.get(sizeType);
+    const facetParent = getFacetModel(model);
+    if (size == null || (size === 'merged' && !facetParent)) {
+        return [];
+    }
+    // Read size signal name from name map, just in case it is the top-level size signal that got renamed.
+    const name = model.getSizeSignalRef(sizeType).signal;
+    if (facetParent?.hasExplicitSize(getSizeTypeFromLayoutSizeType(sizeType))) {
+        return [
+            {
+                name,
+                update: autosizedFacetExpr(facetParent, sizeType),
+            },
+        ];
+    }
+    else if (size === 'step') {
+        const scaleComponent = model.getScaleComponent(channel);
+        if (scaleComponent) {
+            const type = scaleComponent.get('type');
+            const range = scaleComponent.get('range');
+            if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
+                const scaleName = model.scaleName(channel);
+                if (isFacetModel(model.parent)) {
+                    // If parent is facet and this is an independent scale, return only signal signal
+                    // as the width/height will be calculated using the cardinality from
+                    // facet's aggregate rather than reading from scale domain
+                    const parentResolve = model.parent.component.resolve;
+                    if (parentResolve.scale[channel] === 'independent') {
+                        return [stepSignal(scaleName, range)];
+                    }
+                }
+                return [
+                    stepSignal(scaleName, range),
+                    {
+                        name,
+                        update: sizeExpr(scaleName, scaleComponent, `domain('${scaleName}').length`),
+                    },
+                ];
+            }
+        }
+        /* istanbul ignore next: Condition should not happen -- only for warning in development. */
+        throw new Error('layout size is step although width/height is not step.');
+    }
+    else if (size == 'container') {
+        const isWidth = name.endsWith('width');
+        const expr = isWidth ? 'containerSize()[0]' : 'containerSize()[1]';
+        const defaultValue = getViewConfigContinuousSize(model.config.view, isWidth ? 'width' : 'height');
+        const safeExpr = `isFinite(${expr}) ? ${expr} : ${defaultValue}`;
+        return [{ name, init: safeExpr, on: [{ update: safeExpr, events: 'window:resize' }] }];
+    }
+    else if (size !== 'merged') {
+        return [
+            {
+                name,
+                value: size,
+            },
+        ];
+    }
+    return [];
+}
+function stepSignal(scaleName, range) {
+    const name = `${scaleName}_step`;
+    if (isSignalRef(range.step)) {
+        return { name, update: range.step.signal };
+    }
+    else {
+        return { name, value: range.step };
+    }
+}
+function sizeExpr(scaleName, scaleComponent, cardinality) {
+    const type = scaleComponent.get('type');
+    const padding = scaleComponent.get('padding');
+    const paddingOuter = getFirstDefined(scaleComponent.get('paddingOuter'), padding);
+    let paddingInner = scaleComponent.get('paddingInner');
+    paddingInner =
+        type === 'band'
+            ? // only band has real paddingInner
+                paddingInner !== undefined
+                    ? paddingInner
+                    : padding
+            : // For point, as calculated in https://github.com/vega/vega-scale/blob/master/src/band.js#L128,
+                // it's equivalent to have paddingInner = 1 since there is only n-1 steps between n points.
+                1;
+    return `bandspace(${cardinality}, ${signalOrStringValue(paddingInner)}, ${signalOrStringValue(paddingOuter)}) * ${scaleName}_step`;
+}
+function autosizedFacetExpr(model, sizeType) {
+    const channel = sizeType === 'width' ? 'column' : 'row';
+    if (!model.facet[channel] && isFacetMapping(model.facet)) {
+        return sizeType;
+    }
+    if (!isFacetMapping(model.facet)) {
+        const cardinality = `length(data("facet_domain"))`;
+        const columns = model.layout.columns;
+        const domain = channel === 'row'
+            ? columns
+                ? `ceil(${cardinality} / ${model.layout.columns})`
+                : 1
+            : columns
+                ? `min(${cardinality}, ${model.layout.columns})`
+                : cardinality;
+        return `${sizeType} / ${domain}`;
+    }
+    const name = model.name ? `${model.name}_` : '';
+    const domain = `${name}${channel}_domain`;
+    return `${sizeType} / length(data('${domain}'))`;
+}
+
+function guideEncodeEntry(encoding, model) {
+    return keys(encoding).reduce((encode, channel) => {
+        return {
+            ...encode,
+            ...wrapCondition({
+                model,
+                channelDef: encoding[channel],
+                vgChannel: channel,
+                mainRefFn: (def) => signalOrValueRef(def.value),
+                invalidValueRef: undefined, // guide encoding won't show invalid values for the scale
+            }),
+        };
+    }, {});
+}
+
+const LEGEND_COMPONENT_PROPERTY_INDEX = {
+    ...COMMON_LEGEND_PROPERTY_INDEX,
+    disable: 1,
+    labelExpr: 1,
+    selections: 1,
+    // channel scales
+    opacity: 1,
+    shape: 1,
+    stroke: 1,
+    fill: 1,
+    size: 1,
+    strokeWidth: 1,
+    strokeDash: 1,
+    // encode
+    encode: 1,
+};
+const LEGEND_COMPONENT_PROPERTIES = keys(LEGEND_COMPONENT_PROPERTY_INDEX);
+class LegendComponent extends Split {
+}
+
+const legendEncodeRules = {
+    symbols,
+    gradient,
+    labels: labels$1,
+    entries,
+};
+function symbols(symbolsSpec, { fieldOrDatumDef, model, channel, legendCmpt, legendType }) {
+    if (legendType !== 'symbol') {
+        return undefined;
+    }
+    const { markDef, encoding, config, mark } = model;
+    const filled = markDef.filled && mark !== 'trail';
+    let out = {
+        ...applyMarkConfig({}, model, FILL_STROKE_CONFIG),
+        ...color(model, { filled }),
+    }; // FIXME: remove this when VgEncodeEntry is compatible with SymbolEncodeEntry
+    const symbolOpacity = legendCmpt.get('symbolOpacity') ?? config.legend.symbolOpacity;
+    const symbolFillColor = legendCmpt.get('symbolFillColor') ?? config.legend.symbolFillColor;
+    const symbolStrokeColor = legendCmpt.get('symbolStrokeColor') ?? config.legend.symbolStrokeColor;
+    const opacity = symbolOpacity === undefined ? (getMaxValue(encoding.opacity) ?? markDef.opacity) : undefined;
+    if (out.fill) {
+        // for fill legend, we don't want any fill in symbol
+        if (channel === 'fill' || (filled && channel === COLOR)) {
+            delete out.fill;
+        }
+        else if (hasProperty(out.fill, 'field')) {
+            // For others, set fill to some opaque value (or nothing if a color is already set)
+            if (symbolFillColor) {
+                delete out.fill;
+            }
+            else {
+                out.fill = signalOrValueRef(config.legend.symbolBaseFillColor ?? 'black');
+                out.fillOpacity = signalOrValueRef(opacity ?? 1);
+            }
+        }
+        else if (isArray(out.fill)) {
+            const fill = getFirstConditionValue(encoding.fill ?? encoding.color) ?? markDef.fill ?? (filled && markDef.color);
+            if (fill) {
+                out.fill = signalOrValueRef(fill);
+            }
+        }
+    }
+    if (out.stroke) {
+        if (channel === 'stroke' || (!filled && channel === COLOR)) {
+            delete out.stroke;
+        }
+        else if (hasProperty(out.stroke, 'field') || symbolStrokeColor) {
+            // For others, remove stroke field
+            delete out.stroke;
+        }
+        else if (isArray(out.stroke)) {
+            const stroke = getFirstDefined(getFirstConditionValue(encoding.stroke || encoding.color), markDef.stroke, filled ? markDef.color : undefined);
+            if (stroke) {
+                out.stroke = { value: stroke };
+            }
+        }
+    }
+    if (channel !== OPACITY) {
+        const condition = isFieldDef(fieldOrDatumDef) && selectedCondition(model, legendCmpt, fieldOrDatumDef);
+        if (condition) {
+            out.opacity = [
+                { test: condition, ...signalOrValueRef(opacity ?? 1) },
+                signalOrValueRef(config.legend.unselectedOpacity),
+            ];
+        }
+        else if (opacity) {
+            out.opacity = signalOrValueRef(opacity);
+        }
+    }
+    out = { ...out, ...symbolsSpec };
+    return isEmpty(out) ? undefined : out;
+}
+function gradient(gradientSpec, { model, legendType, legendCmpt }) {
+    if (legendType !== 'gradient') {
+        return undefined;
+    }
+    const { config, markDef, encoding } = model;
+    let out = {};
+    const gradientOpacity = legendCmpt.get('gradientOpacity') ?? config.legend.gradientOpacity;
+    const opacity = gradientOpacity === undefined ? getMaxValue(encoding.opacity) || markDef.opacity : undefined;
+    if (opacity) {
+        // only apply opacity if it is neither zero or undefined
+        out.opacity = signalOrValueRef(opacity);
+    }
+    out = { ...out, ...gradientSpec };
+    return isEmpty(out) ? undefined : out;
+}
+function labels$1(specifiedlabelsSpec, { fieldOrDatumDef, model, channel, legendCmpt }) {
+    const legend = model.legend(channel) || {};
+    const config = model.config;
+    const condition = isFieldDef(fieldOrDatumDef) ? selectedCondition(model, legendCmpt, fieldOrDatumDef) : undefined;
+    const opacity = condition ? [{ test: condition, value: 1 }, { value: config.legend.unselectedOpacity }] : undefined;
+    const { format, formatType } = legend;
+    let text = undefined;
+    if (isCustomFormatType(formatType)) {
+        text = formatCustomType({
+            fieldOrDatumDef,
+            field: 'datum.value',
+            format,
+            formatType,
+            config,
+        });
+    }
+    else if (format === undefined && formatType === undefined && config.customFormatTypes) {
+        if (fieldOrDatumDef.type === 'quantitative' && config.numberFormatType) {
+            text = formatCustomType({
+                fieldOrDatumDef,
+                field: 'datum.value',
+                format: config.numberFormat,
+                formatType: config.numberFormatType,
+                config,
+            });
+        }
+        else if (fieldOrDatumDef.type === 'temporal' &&
+            config.timeFormatType &&
+            isFieldDef(fieldOrDatumDef) &&
+            fieldOrDatumDef.timeUnit === undefined) {
+            text = formatCustomType({
+                fieldOrDatumDef,
+                field: 'datum.value',
+                format: config.timeFormat,
+                formatType: config.timeFormatType,
+                config,
+            });
+        }
+    }
+    const labelsSpec = {
+        ...(opacity ? { opacity } : {}),
+        ...(text ? { text } : {}),
+        ...specifiedlabelsSpec,
+    };
+    return isEmpty(labelsSpec) ? undefined : labelsSpec;
+}
+function entries(entriesSpec, { legendCmpt }) {
+    const selections = legendCmpt.get('selections');
+    return selections?.length ? { ...entriesSpec, fill: { value: 'transparent' } } : entriesSpec;
+}
+function getMaxValue(channelDef) {
+    return getConditionValue(channelDef, (v, conditionalDef) => Math.max(v, conditionalDef.value));
+}
+function getFirstConditionValue(channelDef) {
+    return getConditionValue(channelDef, (v, conditionalDef) => {
+        return getFirstDefined(v, conditionalDef.value);
+    });
+}
+function getConditionValue(channelDef, reducer) {
+    if (hasConditionalValueDef(channelDef)) {
+        return array(channelDef.condition).reduce(reducer, channelDef.value);
+    }
+    else if (isValueDef(channelDef)) {
+        return channelDef.value;
+    }
+    return undefined;
+}
+function selectedCondition(model, legendCmpt, fieldDef) {
+    const selections = legendCmpt.get('selections');
+    if (!selections?.length)
+        return undefined;
+    const field = stringValue(fieldDef.field);
+    return selections
+        .map((name) => {
+        const store = stringValue(varName(name) + STORE);
+        return `(!length(data(${store})) || (${name}[${field}] && indexof(${name}[${field}], datum.value) >= 0))`;
+    })
+        .join(' || ');
+}
+
+const legendRules = {
+    direction: ({ direction }) => direction,
+    format: ({ fieldOrDatumDef, legend, config }) => {
+        const { format, formatType } = legend;
+        return guideFormat(fieldOrDatumDef, fieldOrDatumDef.type, format, formatType, config, false);
+    },
+    formatType: ({ legend, fieldOrDatumDef, scaleType }) => {
+        const { formatType } = legend;
+        return guideFormatType(formatType, fieldOrDatumDef, scaleType);
+    },
+    gradientLength: (params) => {
+        const { legend, legendConfig } = params;
+        return legend.gradientLength ?? legendConfig.gradientLength ?? defaultGradientLength(params);
+    },
+    labelOverlap: ({ legend, legendConfig, scaleType }) => legend.labelOverlap ?? legendConfig.labelOverlap ?? defaultLabelOverlap(scaleType),
+    symbolType: ({ legend, markDef, channel, encoding }) => legend.symbolType ?? defaultSymbolType(markDef.type, channel, encoding.shape, markDef.shape),
+    title: ({ fieldOrDatumDef, config }) => title(fieldOrDatumDef, config, { allowDisabling: true }),
+    type: ({ legendType, scaleType, channel }) => {
+        if (isColorChannel(channel) && isContinuousToContinuous(scaleType)) {
+            if (legendType === 'gradient') {
+                return undefined;
+            }
+        }
+        else if (legendType === 'symbol') {
+            return undefined;
+        }
+        return legendType;
+    }, // depended by other property, let's define upfront
+    values: ({ fieldOrDatumDef, legend }) => values(legend, fieldOrDatumDef),
+};
+function values(legend, fieldOrDatumDef) {
+    const vals = legend.values;
+    if (isArray(vals)) {
+        return valueArray(fieldOrDatumDef, vals);
+    }
+    else if (isSignalRef(vals)) {
+        return vals;
+    }
+    return undefined;
+}
+function defaultSymbolType(mark, channel, shapeChannelDef, markShape) {
+    if (channel !== 'shape') {
+        // use the value from the shape encoding or the mark config if they exist
+        const shape = getFirstConditionValue(shapeChannelDef) ?? markShape;
+        if (shape) {
+            return shape;
+        }
+    }
+    switch (mark) {
+        case 'bar':
+        case 'rect':
+        case 'image':
+        case 'square':
+            return 'square';
+        case 'line':
+        case 'trail':
+        case 'rule':
+            return 'stroke';
+        case 'arc':
+        case 'point':
+        case 'circle':
+        case 'tick':
+        case 'geoshape':
+        case 'area':
+        case 'text':
+            return 'circle';
+    }
+}
+function getLegendType(params) {
+    const { legend } = params;
+    return getFirstDefined(legend.type, defaultType$1(params));
+}
+function defaultType$1({ channel, timeUnit, scaleType, }) {
+    // Following the logic in https://github.com/vega/vega-parser/blob/master/src/parsers/legend.js
+    if (isColorChannel(channel)) {
+        if (contains(['quarter', 'month', 'day'], timeUnit)) {
+            return 'symbol';
+        }
+        if (isContinuousToContinuous(scaleType)) {
+            return 'gradient';
+        }
+    }
+    return 'symbol';
+}
+function getDirection({ legendConfig, legendType, orient, legend, }) {
+    return (legend.direction ??
+        legendConfig[legendType ? 'gradientDirection' : 'symbolDirection'] ??
+        defaultDirection(orient, legendType));
+}
+function defaultDirection(orient, legendType) {
+    switch (orient) {
+        case 'top':
+        case 'bottom':
+            return 'horizontal';
+        case 'left':
+        case 'right':
+        case 'none':
+        case undefined: // undefined = "right" in Vega
+            return undefined; // vertical is Vega's default
+        default:
+            // top-left / ...
+            // For inner legend, uses compact layout like Tableau
+            return legendType === 'gradient' ? 'horizontal' : undefined;
+    }
+}
+function defaultGradientLength({ legendConfig, model, direction, orient, scaleType, }) {
+    const { gradientHorizontalMaxLength, gradientHorizontalMinLength, gradientVerticalMaxLength, gradientVerticalMinLength, } = legendConfig;
+    if (isContinuousToContinuous(scaleType)) {
+        if (direction === 'horizontal') {
+            if (orient === 'top' || orient === 'bottom') {
+                return gradientLengthSignal(model, 'width', gradientHorizontalMinLength, gradientHorizontalMaxLength);
+            }
+            else {
+                return gradientHorizontalMinLength;
+            }
+        }
+        else {
+            // vertical / undefined (Vega uses vertical by default)
+            return gradientLengthSignal(model, 'height', gradientVerticalMinLength, gradientVerticalMaxLength);
+        }
+    }
+    return undefined;
+}
+function gradientLengthSignal(model, sizeType, min, max) {
+    const sizeSignal = model.getSizeSignalRef(sizeType).signal;
+    return { signal: `clamp(${sizeSignal}, ${min}, ${max})` };
+}
+function defaultLabelOverlap(scaleType) {
+    if (contains(['quantile', 'threshold', 'log', 'symlog'], scaleType)) {
+        return 'greedy';
+    }
+    return undefined;
+}
+
+function parseLegend(model) {
+    const legendComponent = isUnitModel(model) ? parseUnitLegend(model) : parseNonUnitLegend(model);
+    model.component.legends = legendComponent;
+    return legendComponent;
+}
+function parseUnitLegend(model) {
+    const { encoding } = model;
+    const legendComponent = {};
+    for (const channel of [COLOR, ...LEGEND_SCALE_CHANNELS]) {
+        const def = getFieldOrDatumDef(encoding[channel]);
+        if (!def || !model.getScaleComponent(channel)) {
+            continue;
+        }
+        if (channel === SHAPE && isFieldDef(def) && def.type === GEOJSON) {
+            continue;
+        }
+        legendComponent[channel] = parseLegendForChannel(model, channel);
+    }
+    return legendComponent;
+}
+function getLegendDefWithScale(model, channel) {
+    const scale = model.scaleName(channel);
+    if (model.mark === 'trail') {
+        if (channel === 'color') {
+            // trail is a filled mark, but its default symbolType ("stroke") should use "stroke"
+            return { stroke: scale };
+        }
+        else if (channel === 'size') {
+            return { strokeWidth: scale };
+        }
+    }
+    if (channel === 'color') {
+        return model.markDef.filled ? { fill: scale } : { stroke: scale };
+    }
+    return { [channel]: scale };
+}
+function isExplicit$1(value, property, legend, fieldDef) {
+    switch (property) {
+        case 'disable':
+            return legend !== undefined; // if axis is specified or null/false, then its enable/disable state is explicit
+        case 'values':
+            // specified legend.values is already respected, but may get transformed.
+            return !!legend?.values;
+        case 'title':
+            // title can be explicit if fieldDef.title is set
+            if (property === 'title' && value === fieldDef?.title) {
+                return true;
+            }
+    }
+    // Otherwise, things are explicit if the returned value matches the specified property
+    return value === (legend || {})[property];
+}
+function parseLegendForChannel(model, channel) {
+    let legend = model.legend(channel);
+    const { markDef, encoding, config } = model;
+    const legendConfig = config.legend;
+    const legendCmpt = new LegendComponent({}, getLegendDefWithScale(model, channel));
+    parseInteractiveLegend(model, channel, legendCmpt);
+    const disable = legend !== undefined ? !legend : legendConfig.disable;
+    legendCmpt.set('disable', disable, legend !== undefined);
+    if (disable) {
+        return legendCmpt;
+    }
+    legend = legend || {};
+    const scaleType = model.getScaleComponent(channel).get('type');
+    const fieldOrDatumDef = getFieldOrDatumDef(encoding[channel]);
+    const timeUnit = isFieldDef(fieldOrDatumDef) ? normalizeTimeUnit(fieldOrDatumDef.timeUnit)?.unit : undefined;
+    const orient = legend.orient || config.legend.orient || 'right';
+    const legendType = getLegendType({ legend, channel, timeUnit, scaleType });
+    const direction = getDirection({ legend, legendType, orient, legendConfig });
+    const ruleParams = {
+        legend,
+        channel,
+        model,
+        markDef,
+        encoding,
+        fieldOrDatumDef,
+        legendConfig,
+        config,
+        scaleType,
+        orient,
+        legendType,
+        direction,
+    };
+    for (const property of LEGEND_COMPONENT_PROPERTIES) {
+        if ((legendType === 'gradient' && property.startsWith('symbol')) ||
+            (legendType === 'symbol' && property.startsWith('gradient'))) {
+            continue;
+        }
+        const value = property in legendRules ? legendRules[property](ruleParams) : legend[property];
+        if (value !== undefined) {
+            const explicit = isExplicit$1(value, property, legend, model.fieldDef(channel));
+            if (explicit || config.legend[property] === undefined) {
+                legendCmpt.set(property, value, explicit);
+            }
+        }
+    }
+    const legendEncoding = legend?.encoding ?? {};
+    const selections = legendCmpt.get('selections');
+    const legendEncode = {};
+    const legendEncodeParams = { fieldOrDatumDef, model, channel, legendCmpt, legendType };
+    for (const part of ['labels', 'legend', 'title', 'symbols', 'gradient', 'entries']) {
+        // FIXME: remove as any (figure out what legendEncoding.entries is)
+        const legendEncodingPart = guideEncodeEntry(legendEncoding[part] ?? {}, model);
+        const value = part in legendEncodeRules
+            ? legendEncodeRules[part](legendEncodingPart, legendEncodeParams) // apply rule
+            : legendEncodingPart; // no rule -- just default values
+        if (value !== undefined && !isEmpty(value)) {
+            legendEncode[part] = {
+                ...(selections?.length && isFieldDef(fieldOrDatumDef)
+                    ? { name: `${varName(fieldOrDatumDef.field)}_legend_${part}` }
+                    : {}),
+                ...(selections?.length ? { interactive: true } : {}),
+                update: selections?.length ? { ...value, cursor: { value: 'pointer' } } : value,
+            };
+        }
+    }
+    if (!isEmpty(legendEncode)) {
+        legendCmpt.set('encode', legendEncode, !!legend?.encoding);
+    }
+    return legendCmpt;
+}
+function parseNonUnitLegend(model) {
+    const { legends, resolve } = model.component;
+    for (const child of model.children) {
+        parseLegend(child);
+        for (const channel of keys(child.component.legends)) {
+            resolve.legend[channel] = parseGuideResolve(model.component.resolve, channel);
+            if (resolve.legend[channel] === 'shared') {
+                // If the resolve says shared (and has not been overridden)
+                // We will try to merge and see if there is a conflict
+                legends[channel] = mergeLegendComponent(legends[channel], child.component.legends[channel]);
+                if (!legends[channel]) {
+                    // If merge returns nothing, there is a conflict so we cannot make the legend shared.
+                    // Thus, mark legend as independent and remove the legend component.
+                    resolve.legend[channel] = 'independent';
+                    delete legends[channel];
+                }
+            }
+        }
+    }
+    for (const channel of keys(legends)) {
+        for (const child of model.children) {
+            if (!child.component.legends[channel]) {
+                // skip if the child does not have a particular legend
+                continue;
+            }
+            if (resolve.legend[channel] === 'shared') {
+                // After merging shared legend, make sure to remove legend from child
+                delete child.component.legends[channel];
+            }
+        }
+    }
+    return legends;
+}
+function mergeLegendComponent(mergedLegend, childLegend) {
+    if (!mergedLegend) {
+        return childLegend.clone();
+    }
+    const mergedOrient = mergedLegend.getWithExplicit('orient');
+    const childOrient = childLegend.getWithExplicit('orient');
+    if (mergedOrient.explicit && childOrient.explicit && mergedOrient.value !== childOrient.value) {
+        // TODO: throw warning if resolve is explicit (We don't have info about explicit/implicit resolve yet.)
+        // Cannot merge due to inconsistent orient
+        return undefined;
+    }
+    let typeMerged = false;
+    // Otherwise, let's merge
+    for (const prop of LEGEND_COMPONENT_PROPERTIES) {
+        const mergedValueWithExplicit = mergeValuesWithExplicit(mergedLegend.getWithExplicit(prop), childLegend.getWithExplicit(prop), prop, 'legend', 
+        // Tie breaker function
+        (v1, v2) => {
+            switch (prop) {
+                case 'symbolType':
+                    return mergeSymbolType(v1, v2);
+                case 'title':
+                    return mergeTitleComponent(v1, v2);
+                case 'type':
+                    // There are only two types. If we have different types, then prefer symbol over gradient.
+                    typeMerged = true;
+                    return makeImplicit('symbol');
+            }
+            return defaultTieBreaker(v1, v2, prop, 'legend');
+        });
+        mergedLegend.setWithExplicit(prop, mergedValueWithExplicit);
+    }
+    if (typeMerged) {
+        if (mergedLegend.implicit?.encode?.gradient) {
+            deleteNestedProperty(mergedLegend.implicit, ['encode', 'gradient']);
+        }
+        if (mergedLegend.explicit?.encode?.gradient) {
+            deleteNestedProperty(mergedLegend.explicit, ['encode', 'gradient']);
+        }
+    }
+    return mergedLegend;
+}
+function mergeSymbolType(st1, st2) {
+    if (st2.value === 'circle') {
+        // prefer "circle" over "stroke"
+        return st2;
+    }
+    return st1;
 }
 
 function setLegendEncode(legend, part, vgProp, vgRef) {
@@ -17441,6 +17468,43 @@ class LookupNode extends DataFlowNode {
 }
 
 /**
+ * A class for pivot transform nodes.
+ */
+class PivotTransformNode extends DataFlowNode {
+    transform;
+    clone() {
+        return new PivotTransformNode(null, duplicate(this.transform));
+    }
+    constructor(parent, transform) {
+        super(parent);
+        this.transform = transform;
+    }
+    addDimensions(fields) {
+        this.transform.groupby = unique((this.transform.groupby ?? []).concat(fields), (d) => d);
+    }
+    producedFields() {
+        return undefined; // return undefined so that potentially everything can depend on the pivot
+    }
+    dependentFields() {
+        return new Set([this.transform.pivot, this.transform.value, ...(this.transform.groupby ?? [])]);
+    }
+    hash() {
+        return `PivotTransform ${hash(this.transform)}`;
+    }
+    assemble() {
+        const { pivot, value, groupby, limit, op } = this.transform;
+        return {
+            type: 'pivot',
+            field: pivot,
+            value,
+            ...(limit !== undefined ? { limit } : {}),
+            ...(op !== undefined ? { op } : {}),
+            ...(groupby !== undefined ? { groupby } : {}),
+        };
+    }
+}
+
+/**
  * A class for quantile transform nodes
  */
 class QuantileTransformNode extends DataFlowNode {
@@ -17512,43 +17576,6 @@ class RegressionTransformNode extends DataFlowNode {
 }
 
 /**
- * A class for pivot transform nodes.
- */
-class PivotTransformNode extends DataFlowNode {
-    transform;
-    clone() {
-        return new PivotTransformNode(null, duplicate(this.transform));
-    }
-    constructor(parent, transform) {
-        super(parent);
-        this.transform = transform;
-    }
-    addDimensions(fields) {
-        this.transform.groupby = unique((this.transform.groupby ?? []).concat(fields), (d) => d);
-    }
-    producedFields() {
-        return undefined; // return undefined so that potentially everything can depend on the pivot
-    }
-    dependentFields() {
-        return new Set([this.transform.pivot, this.transform.value, ...(this.transform.groupby ?? [])]);
-    }
-    hash() {
-        return `PivotTransform ${hash(this.transform)}`;
-    }
-    assemble() {
-        const { pivot, value, groupby, limit, op } = this.transform;
-        return {
-            type: 'pivot',
-            field: pivot,
-            value,
-            ...(limit !== undefined ? { limit } : {}),
-            ...(op !== undefined ? { op } : {}),
-            ...(groupby !== undefined ? { groupby } : {}),
-        };
-    }
-}
-
-/**
  * A class for the sample transform nodes
  */
 class SampleTransformNode extends DataFlowNode {
@@ -17575,949 +17602,6 @@ class SampleTransformNode extends DataFlowNode {
             size: this.transform.sample,
         };
     }
-}
-
-function makeWalkTree(data, namePrefix = 'data') {
-    // to name datasources
-    let datasetIndex = 0;
-    /**
-     * Recursively walk down the tree.
-     */
-    function walkTree(node, dataSource) {
-        if (node instanceof SourceNode) {
-            // If the source is a named data source or a data source with values, we need
-            // to put it in a different data source. Otherwise, Vega may override the data.
-            if (!node.isGenerator && !isUrlData(node.data)) {
-                data.push(dataSource);
-                const newData = {
-                    name: null,
-                    source: dataSource.name,
-                    transform: [],
-                };
-                dataSource = newData;
-            }
-        }
-        if (node instanceof ParseNode) {
-            if (node.parent instanceof SourceNode && !dataSource.source) {
-                // If node's parent is a root source and the data source does not refer to another data source, use normal format parse
-                dataSource.format = {
-                    ...dataSource.format,
-                    parse: node.assembleFormatParse(),
-                };
-                // add calculates for all nested fields
-                dataSource.transform.push(...node.assembleTransforms(true));
-            }
-            else {
-                // Otherwise use Vega expression to parse
-                dataSource.transform.push(...node.assembleTransforms());
-            }
-        }
-        if (node instanceof FacetNode) {
-            if (!dataSource.name) {
-                dataSource.name = `${namePrefix}_${datasetIndex++}`;
-            }
-            if (!dataSource.source || dataSource.transform.length > 0) {
-                data.push(dataSource);
-                node.data = dataSource.name;
-            }
-            else {
-                node.data = dataSource.source;
-            }
-            data.push(...node.assemble());
-            // break here because the rest of the tree has to be taken care of by the facet.
-            return;
-        }
-        if (node instanceof GraticuleNode ||
-            node instanceof SequenceNode ||
-            node instanceof FilterInvalidNode ||
-            node instanceof FilterNode ||
-            node instanceof CalculateNode ||
-            node instanceof GeoPointNode ||
-            node instanceof AggregateNode ||
-            node instanceof LookupNode ||
-            node instanceof WindowTransformNode ||
-            node instanceof JoinAggregateTransformNode ||
-            node instanceof FoldTransformNode ||
-            node instanceof FlattenTransformNode ||
-            node instanceof DensityTransformNode ||
-            node instanceof LoessTransformNode ||
-            node instanceof QuantileTransformNode ||
-            node instanceof RegressionTransformNode ||
-            node instanceof IdentifierNode ||
-            node instanceof SampleTransformNode ||
-            node instanceof PivotTransformNode ||
-            node instanceof ExtentTransformNode) {
-            dataSource.transform.push(node.assemble());
-        }
-        if (node instanceof BinNode ||
-            node instanceof TimeUnitNode ||
-            node instanceof ImputeNode ||
-            node instanceof StackNode ||
-            node instanceof GeoJSONNode) {
-            dataSource.transform.push(...node.assemble());
-        }
-        if (node instanceof OutputNode) {
-            if (dataSource.source && dataSource.transform.length === 0) {
-                node.setSource(dataSource.source);
-            }
-            else if (node.parent instanceof OutputNode) {
-                // Note that an output node may be required but we still do not assemble a
-                // separate data source for it.
-                node.setSource(dataSource.name);
-            }
-            else {
-                if (!dataSource.name) {
-                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
-                }
-                // Here we set the name of the datasource we generated. From now on
-                // other assemblers can use it.
-                node.setSource(dataSource.name);
-                // if this node has more than one child, we will add a datasource automatically
-                if (node.numChildren() === 1) {
-                    data.push(dataSource);
-                    const newData = {
-                        name: null,
-                        source: dataSource.name,
-                        transform: [],
-                    };
-                    dataSource = newData;
-                }
-            }
-        }
-        switch (node.numChildren()) {
-            case 0:
-                // done
-                if (node instanceof OutputNode && (!dataSource.source || dataSource.transform.length > 0)) {
-                    // do not push empty datasources that are simply references
-                    data.push(dataSource);
-                }
-                break;
-            case 1:
-                walkTree(node.children[0], dataSource);
-                break;
-            default: {
-                if (!dataSource.name) {
-                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
-                }
-                let source = dataSource.name;
-                if (!dataSource.source || dataSource.transform.length > 0) {
-                    data.push(dataSource);
-                }
-                else {
-                    source = dataSource.source;
-                }
-                for (const child of node.children) {
-                    const newData = {
-                        name: null,
-                        source,
-                        transform: [],
-                    };
-                    walkTree(child, newData);
-                }
-                break;
-            }
-        }
-    }
-    return walkTree;
-}
-/**
- * Assemble data sources that are derived from faceted data.
- */
-function assembleFacetData(root) {
-    const data = [];
-    // Facet-scoped datasets get their own prefix: this walk restarts its counter at
-    // 0, so plain `data_N` names collide with the top-level ones. Vega resolves a
-    // reference in the innermost scope, so a cell dataset would silently shadow the
-    // top-level dataset of the same name — which breaks a scale inside the cell that
-    // deliberately points at the shared (post-facet) copy of the data for its domain.
-    const walkTree = makeWalkTree(data, 'facet_data');
-    for (const child of root.children) {
-        walkTree(child, {
-            source: root.name,
-            name: null,
-            transform: [],
-        });
-    }
-    return data;
-}
-/**
- * Create Vega data array from a given compiled model and append all of them to the given array
- *
- * @param  model
- * @param  data array
- * @return modified data array
- */
-function assembleRootData(dataComponent, datasets) {
-    const data = [];
-    // dataComponent.sources.forEach(debug);
-    // draw(dataComponent.sources);
-    const walkTree = makeWalkTree(data);
-    let sourceIndex = 0;
-    for (const root of dataComponent.sources) {
-        // assign a name if the source does not have a name yet
-        if (!root.hasName()) {
-            root.dataName = `source_${sourceIndex++}`;
-        }
-        const newData = root.assemble();
-        walkTree(root, newData);
-    }
-    // remove empty transform arrays for cleaner output
-    for (const d of data) {
-        if (d.transform.length === 0) {
-            delete d.transform;
-        }
-    }
-    // move sources without transforms (the ones that are potentially used in lookups) to the beginning
-    let whereTo = 0;
-    for (const [i, d] of data.entries()) {
-        if ((d.transform ?? []).length === 0 && !d.source) {
-            data.splice(whereTo++, 0, data.splice(i, 1)[0]);
-        }
-    }
-    // now fix the from references in lookup transforms
-    for (const d of data) {
-        for (const t of d.transform ?? []) {
-            if (t.type === 'lookup') {
-                t.from = dataComponent.outputNodes[t.from].getSource();
-            }
-        }
-    }
-    // inline values for datasets that are in the datastore
-    for (const d of data) {
-        if (d.name in datasets) {
-            d.values = datasets[d.name];
-        }
-    }
-    return data;
-}
-
-function getHeaderType(orient) {
-    if (orient === 'top' || orient === 'left' || isSignalRef(orient)) {
-        // we always use header for orient signal since we can't dynamically make header becomes footer
-        return 'header';
-    }
-    return 'footer';
-}
-function parseFacetHeaders(model) {
-    for (const channel of FACET_CHANNELS) {
-        parseFacetHeader(model, channel);
-    }
-    mergeChildAxis(model, 'x');
-    mergeChildAxis(model, 'y');
-}
-function parseFacetHeader(model, channel) {
-    const { facet, config, child, component } = model;
-    if (model.channelHasField(channel)) {
-        const fieldDef = facet[channel];
-        const titleConfig = getHeaderProperty('title', null, config, channel);
-        let title$1 = title(fieldDef, config, {
-            allowDisabling: true,
-            includeDefault: titleConfig === undefined || !!titleConfig,
-        });
-        if (child.component.layoutHeaders[channel].title) {
-            // TODO: better handle multiline titles
-            title$1 = isArray(title$1) ? title$1.join(', ') : title$1;
-            // merge title with child to produce "Title / Subtitle / Sub-subtitle"
-            title$1 += ` / ${child.component.layoutHeaders[channel].title}`;
-            child.component.layoutHeaders[channel].title = null;
-        }
-        const labelOrient = getHeaderProperty('labelOrient', fieldDef.header, config, channel);
-        const labels = fieldDef.header !== null ? getFirstDefined(fieldDef.header?.labels, config.header.labels, true) : false;
-        const headerType = contains(['bottom', 'right'], labelOrient) ? 'footer' : 'header';
-        component.layoutHeaders[channel] = {
-            title: fieldDef.header !== null ? title$1 : null,
-            facetFieldDef: fieldDef,
-            [headerType]: channel === 'facet' ? [] : [makeHeaderComponent(model, channel, labels)],
-        };
-    }
-}
-function makeHeaderComponent(model, channel, labels) {
-    const sizeType = channel === 'row' ? 'height' : 'width';
-    return {
-        labels,
-        sizeSignal: model.child.component.layoutSize.get(sizeType) ? model.child.getSizeSignalRef(sizeType) : undefined,
-        axes: [],
-    };
-}
-/**
- * Whether a facet's child scopes this channel's scales below itself rather than exposing
- * a single merged scale. When a non-unit model resolves the channel as `independent`,
- * `parseNonUnitScaleCore` leaves no merged scale component on it and each of its children
- * keeps its own scale — which is assembled inside the facet's cell group.
- *
- * The independent resolve can sit at any depth (e.g. a layer whose own child layer
- * declares it), so walk the subtree rather than checking the direct child only.
- */
-function childHasIndependentScale(child, channel) {
-    if (isUnitModel(child)) {
-        return false;
-    }
-    if (child.component.resolve.scale[channel] === 'independent') {
-        return true;
-    }
-    return child.children.some((grandchild) => childHasIndependentScale(grandchild, channel));
-}
-function mergeChildAxis(model, channel) {
-    const { child } = model;
-    if (child.component.axes[channel]) {
-        const { layoutHeaders, resolve } = model.component;
-        resolve.axis[channel] = parseGuideResolve(resolve, channel);
-        // A facet child that resolves this channel's scale independently (e.g. a layer
-        // with `resolve: {scale: {y: 'independent'}}`) assembles those scales *inside*
-        // the cell group. Hoisting its axes into the facet's row/column header would
-        // reference a scale that does not exist in that scope, so keep them in the cell.
-        if (childHasIndependentScale(child, channel)) {
-            resolve.axis[channel] = 'independent';
-        }
-        if (resolve.axis[channel] === 'shared') {
-            // For shared axis, move the axes to facet's header or footer
-            const headerChannel = channel === 'x' ? 'column' : 'row';
-            const layoutHeader = layoutHeaders[headerChannel];
-            for (const axisComponent of child.component.axes[channel]) {
-                const headerType = getHeaderType(axisComponent.get('orient'));
-                layoutHeader[headerType] ??= [makeHeaderComponent(model, headerChannel, false)];
-                // FIXME: assemble shouldn't be called here, but we do it this way so we only extract the main part of the axes
-                const mainAxis = assembleAxis(axisComponent, 'main', model.config, { header: true });
-                if (mainAxis) {
-                    // LayoutHeader no longer keep track of property precedence, thus let's combine.
-                    layoutHeader[headerType][0].axes.push(mainAxis);
-                }
-                axisComponent.mainExtracted = true;
-            }
-        }
-    }
-}
-
-function parseLayerLayoutSize(model) {
-    parseChildrenLayoutSize(model);
-    parseNonUnitLayoutSizeForChannel(model, 'width');
-    parseNonUnitLayoutSizeForChannel(model, 'height');
-}
-function parseConcatLayoutSize(model) {
-    parseChildrenLayoutSize(model);
-    // for columns === 1 (vconcat), we can completely merge width. Otherwise, we can treat merged width as childWidth.
-    const widthType = model.layout.columns === 1 ? 'width' : 'childWidth';
-    // for columns === undefined (hconcat), we can completely merge height. Otherwise, we can treat merged height as childHeight.
-    const heightType = model.layout.columns === undefined ? 'height' : 'childHeight';
-    parseNonUnitLayoutSizeForChannel(model, widthType);
-    parseNonUnitLayoutSizeForChannel(model, heightType);
-}
-function parseChildrenLayoutSize(model) {
-    for (const child of model.children) {
-        child.parseLayoutSize();
-    }
-}
-/**
- * Merge child layout size (width or height).
- */
-function parseNonUnitLayoutSizeForChannel(model, layoutSizeType) {
-    /*
-     * For concat, the parent width or height might not be the same as the children's shared height.
-     * For example, hconcat's subviews may share width, but the shared width is not the hconcat view's width.
-     *
-     * layoutSizeType represents the output of the view (could be childWidth/childHeight/width/height)
-     * while the sizeType represents the properties of the child.
-     */
-    const sizeType = getSizeTypeFromLayoutSizeType(layoutSizeType);
-    const channel = getPositionScaleChannel(sizeType);
-    const resolve = model.component.resolve;
-    const layoutSizeCmpt = model.component.layoutSize;
-    let mergedSize;
-    // Try to merge layout size
-    for (const child of model.children) {
-        const childSize = child.component.layoutSize.getWithExplicit(sizeType);
-        const scaleResolve = resolve.scale[channel] ?? defaultScaleResolve(channel, model);
-        if (scaleResolve === 'independent' && childSize.value === 'step') {
-            // Do not merge independent scales with range-step as their size depends
-            // on the scale domains, which can be different between scales.
-            mergedSize = undefined;
-            break;
-        }
-        if (mergedSize) {
-            if (scaleResolve === 'independent' && mergedSize.value !== childSize.value) {
-                // For independent scale, only merge if all the sizes are the same.
-                // If the values are different, abandon the merge!
-                mergedSize = undefined;
-                break;
-            }
-            mergedSize = mergeValuesWithExplicit(mergedSize, childSize, sizeType, '');
-        }
-        else {
-            mergedSize = childSize;
-        }
-    }
-    if (mergedSize) {
-        // If merged, rename size and set size of all children.
-        for (const child of model.children) {
-            model.renameSignal(child.getName(sizeType), model.getName(layoutSizeType));
-            child.component.layoutSize.set(sizeType, 'merged', false);
-        }
-        layoutSizeCmpt.setWithExplicit(layoutSizeType, mergedSize);
-    }
-    else {
-        layoutSizeCmpt.setWithExplicit(layoutSizeType, {
-            explicit: false,
-            value: undefined,
-        });
-    }
-}
-function parseUnitLayoutSize(model) {
-    const { size, component } = model;
-    for (const channel of POSITION_SCALE_CHANNELS) {
-        const sizeType = getSizeChannel(channel);
-        if (size[sizeType] != undefined && size[sizeType] != null) {
-            const specifiedSize = size[sizeType];
-            component.layoutSize.set(sizeType, isStep(specifiedSize) ? 'step' : specifiedSize, true);
-        }
-        else {
-            const defaultSize = defaultUnitSize(model, sizeType);
-            component.layoutSize.set(sizeType, defaultSize, false);
-        }
-    }
-}
-function defaultUnitSize(model, sizeType) {
-    const channel = sizeType === 'width' ? 'x' : 'y';
-    const config = model.config;
-    const scaleComponent = model.getScaleComponent(channel);
-    if (scaleComponent) {
-        const scaleType = scaleComponent.get('type');
-        const range = scaleComponent.get('range');
-        if (hasDiscreteDomain(scaleType)) {
-            const size = getViewConfigDiscreteSize(config.view, sizeType);
-            if (isVgRangeStep(range) || isStep(size)) {
-                // For discrete domain with range.step, use dynamic width/height
-                return 'step';
-            }
-            else {
-                return size;
-            }
-        }
-        else {
-            return getViewConfigContinuousSize(config.view, sizeType);
-        }
-    }
-    else if (model.hasProjection || model.mark === 'arc') {
-        // arc should use continuous size by default otherwise the pie is extremely small
-        return getViewConfigContinuousSize(config.view, sizeType);
-    }
-    else {
-        const size = getViewConfigDiscreteSize(config.view, sizeType);
-        return isStep(size) ? size.step : size;
-    }
-}
-
-function facetSortFieldName(fieldDef, sort, opt) {
-    return vgField(sort, { suffix: `by_${vgField(fieldDef)}`, ...opt });
-}
-function legendScaleNames(legend) {
-    return LEGEND_SCALE_CHANNELS.map((prop) => legend[prop]).filter((name) => !!name);
-}
-function referencesCellScope(value, cellDataNames, cellSignalTests) {
-    if (isArray(value)) {
-        return value.some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
-    }
-    if (isObject(value)) {
-        const { data, signal } = value;
-        if (isString(data) && cellDataNames.has(data)) {
-            return true;
-        }
-        if (isString(signal) && cellSignalTests.some((test) => test.test(signal))) {
-            return true;
-        }
-        return vals(value).some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
-    }
-    return false;
-}
-/**
- * Map each scale assembled somewhere in this subtree back to the channel it
- * encodes. Merged components are skipped: their scales assemble under the name
- * of the component they merged into, which its owner reports.
- */
-function collectScaleChannels(model, index) {
-    for (const channel of keys(model.component.scales)) {
-        const scaleComponent = model.component.scales[channel];
-        if (!scaleComponent.merged) {
-            index.set(scaleComponent.get('name'), channel);
-        }
-    }
-    for (const child of model.children) {
-        collectScaleChannels(child, index);
-    }
-}
-/**
- * Split out of the cell group the legends for channels the facet resolves as
- * shared, together with the scales they reference, so the facet's own group can
- * render them once.
- *
- * A facet child that resolves a non-position channel independently (e.g. a layer
- * with `resolve: {scale: {color: 'independent'}}`) keeps those scales on its
- * units, so they — and their legends — assemble inside the repeated cell group:
- * the legend renders once per facet value, laid out inside the cell between the
- * plot and any hoisted axes. The sibling-level independent resolve says nothing
- * about sharing across cells; that is the facet's own resolve, and when it says
- * 'shared' (the default) the legend belongs on the facet's group. The referenced
- * scales must move with it because a legend cannot reach a scale defined in a
- * sibling scope, while the cell's marks still resolve the moved scale by walking
- * up to the enclosing scope.
- *
- * The hoist additionally requires each scale to be facet-invariant — nothing in
- * it may reference a dataset or signal scoped to the cell. A facet-shared scale
- * assembles that way (explicit domains, or domains reading the shared post-facet
- * datasets), so this is a safety condition rather than a second policy: moving a
- * scale with a cell-scoped reference would leave it dangling, which is strictly
- * worse than the duplicated legend it fixes.
- */
-function extractFacetSharedLegends(model, cell) {
-    const cellLegends = cell.legends ?? [];
-    const cellScales = cell.scales ?? [];
-    if (cellLegends.length === 0 || cellScales.length === 0) {
-        return { legends: [], scales: [] };
-    }
-    const scaleByName = new Map(cellScales.map((scale) => [scale.name, scale]));
-    const scaleChannels = new Map();
-    collectScaleChannels(model, scaleChannels);
-    const cellDataNames = new Set([
-        ...(cell.data ?? []).map((dataset) => dataset.name),
-        cell.from.facet.name,
-    ]);
-    const cellSignalTests = (cell.signals ?? []).map(({ name }) => new RegExp(`\\b${name}\\b`));
-    // The facet has no scale component of its own on these channels, so its resolve
-    // may never have been defaulted — same fallback as parseUnitScaleDomain.
-    const facetResolvesShared = (channel) => (model.component.resolve.scale[channel] ?? defaultScaleResolve(channel, model)) === 'shared';
-    const isHoistable = (legend) => {
-        const scaleNames = legendScaleNames(legend);
-        return (scaleNames.length > 0 &&
-            scaleNames.every((name) => {
-                const channel = scaleChannels.get(name);
-                const scale = scaleByName.get(name);
-                return (channel !== undefined &&
-                    facetResolvesShared(channel) &&
-                    scale !== undefined &&
-                    !referencesCellScope(scale, cellDataNames, cellSignalTests));
-            }));
-    };
-    const legends = cellLegends.filter(isHoistable);
-    if (legends.length === 0) {
-        return { legends: [], scales: [] };
-    }
-    const scaleNamesToHoist = new Set(legends.flatMap(legendScaleNames));
-    const remainingLegends = cellLegends.filter((legend) => !legends.includes(legend));
-    if (remainingLegends.length > 0) {
-        cell.legends = remainingLegends;
-    }
-    else {
-        delete cell.legends;
-    }
-    const remainingScales = cellScales.filter((scale) => !scaleNamesToHoist.has(scale.name));
-    if (remainingScales.length > 0) {
-        cell.scales = remainingScales;
-    }
-    else {
-        delete cell.scales;
-    }
-    return { legends, scales: cellScales.filter((scale) => scaleNamesToHoist.has(scale.name)) };
-}
-class FacetModel extends ModelWithField {
-    facet;
-    child;
-    children;
-    hoistedLegends = [];
-    hoistedScales = [];
-    constructor(spec, parent, parentGivenName, config) {
-        super(spec, 'facet', parent, parentGivenName, config, spec.resolve);
-        this.child = buildModel(spec.spec, this, this.getName('child'), undefined, config);
-        this.children = [this.child];
-        this.size = {
-            ...(spec.width ? { width: spec.width } : {}),
-            ...(spec.height ? { height: spec.height } : {}),
-        };
-        this.facet = this.initFacet(spec.facet);
-    }
-    initFacet(facet) {
-        // clone to prevent side effect to the original spec
-        if (!isFacetMapping(facet)) {
-            return { facet: this.initFacetFieldDef(facet, 'facet') };
-        }
-        const channels = keys(facet);
-        const normalizedFacet = {};
-        for (const channel of channels) {
-            if (![ROW, COLUMN].includes(channel)) {
-                // Drop unsupported channel
-                warn(incompatibleChannel(channel, 'facet'));
-                break;
-            }
-            const fieldDef = facet[channel];
-            if (fieldDef.field === undefined) {
-                warn(emptyFieldDef(fieldDef, channel));
-                break;
-            }
-            normalizedFacet[channel] = this.initFacetFieldDef(fieldDef, channel);
-        }
-        return normalizedFacet;
-    }
-    initFacetFieldDef(fieldDef, channel) {
-        // Cast because we call initFieldDef, which assumes general FieldDef.
-        // However, FacetFieldDef is a bit more constrained than the general FieldDef
-        const facetFieldDef = initFieldDef(fieldDef, channel);
-        if (facetFieldDef.header) {
-            facetFieldDef.header = replaceExprRef(facetFieldDef.header);
-        }
-        else if (facetFieldDef.header === null) {
-            facetFieldDef.header = null;
-        }
-        return facetFieldDef;
-    }
-    channelHasField(channel) {
-        return hasProperty(this.facet, channel);
-    }
-    fieldDef(channel) {
-        return this.facet[channel];
-    }
-    parseData() {
-        this.component.data = parseData(this);
-        this.child.parseData();
-    }
-    parseLayoutSize() {
-        parseChildrenLayoutSize(this);
-        const { size, component } = this;
-        for (const dimension of ['width', 'height']) {
-            const specifiedSize = size[dimension];
-            if (specifiedSize) {
-                component.layoutSize.set(dimension, isStep(specifiedSize) ? 'step' : specifiedSize, true);
-            }
-        }
-    }
-    parseSelections() {
-        // As a facet has a single child, the selection components are the same.
-        // The child maintains its selections to assemble signals, which remain
-        // within its unit.
-        this.child.parseSelections();
-        this.component.selection = this.child.component.selection;
-        if (vals(this.component.selection).some((selCmpt) => isTimerSelection(selCmpt))) {
-            error(MULTI_VIEW_ANIMATION_UNSUPPORTED);
-        }
-    }
-    parseMarkGroup() {
-        this.child.parseMarkGroup();
-    }
-    parseAxesAndHeaders() {
-        this.child.parseAxesAndHeaders();
-        parseFacetHeaders(this);
-    }
-    assembleSelectionTopLevelSignals(signals) {
-        return this.child.assembleSelectionTopLevelSignals(signals);
-    }
-    assembleSignals() {
-        this.child.assembleSignals();
-        return [];
-    }
-    assembleSelectionData(data) {
-        return this.child.assembleSelectionData(data);
-    }
-    getHeaderLayoutMixins() {
-        const layoutMixins = {};
-        for (const channel of FACET_CHANNELS) {
-            for (const headerType of HEADER_TYPES) {
-                const layoutHeaderComponent = this.component.layoutHeaders[channel];
-                const headerComponent = layoutHeaderComponent[headerType];
-                const { facetFieldDef } = layoutHeaderComponent;
-                if (facetFieldDef) {
-                    const titleOrient = getHeaderProperty('titleOrient', facetFieldDef.header, this.config, channel);
-                    if (['right', 'bottom'].includes(titleOrient)) {
-                        const headerChannel = getHeaderChannel(channel, titleOrient);
-                        layoutMixins.titleAnchor ??= {};
-                        layoutMixins.titleAnchor[headerChannel] = 'end';
-                    }
-                }
-                if (headerComponent?.[0]) {
-                    // set header/footerBand
-                    const sizeType = channel === 'row' ? 'height' : 'width';
-                    const bandType = headerType === 'header' ? 'headerBand' : 'footerBand';
-                    if (channel !== 'facet' && !this.child.component.layoutSize.get(sizeType)) {
-                        // If facet child does not have size signal, then apply headerBand
-                        layoutMixins[bandType] ??= {};
-                        layoutMixins[bandType][channel] = 0.5;
-                    }
-                    if (layoutHeaderComponent.title) {
-                        layoutMixins.offset ??= {};
-                        layoutMixins.offset[channel === 'row' ? 'rowTitle' : 'columnTitle'] = 10;
-                    }
-                }
-            }
-        }
-        return layoutMixins;
-    }
-    assembleDefaultLayout() {
-        const { column, row } = this.facet;
-        const columns = column ? this.columnDistinctSignal() : row ? 1 : undefined;
-        let align = 'all';
-        // Do not align the cells if the scale corresponding to the direction is indepent.
-        // We always align when we facet into both row and column.
-        if (!row && this.component.resolve.scale.x === 'independent') {
-            align = 'none';
-        }
-        else if (!column && this.component.resolve.scale.y === 'independent') {
-            align = 'none';
-        }
-        return {
-            ...this.getHeaderLayoutMixins(),
-            ...(columns ? { columns } : {}),
-            bounds: 'full',
-            align,
-        };
-    }
-    assembleLayoutSignals() {
-        const layoutSignals = assembleLayoutSignals(this);
-        for (const signal of this.child.assembleLayoutSignals()) {
-            const currentSignals = layoutSignals.map((s) => s.name);
-            if (!currentSignals.includes(signal.name)) {
-                layoutSignals.push(signal);
-            }
-        }
-        return layoutSignals;
-    }
-    columnDistinctSignal() {
-        if (this.parent && this.parent instanceof FacetModel) {
-            // For nested facet, we will add columns to group mark instead
-            // See discussion in https://github.com/vega/vega/issues/952
-            // and https://github.com/vega/vega-view/releases/tag/v1.2.6
-            return undefined;
-        }
-        else {
-            // In facetNode.assemble(), the name is always this.getName('column') + '_layout'.
-            const facetLayoutDataName = this.getName('column_domain');
-            return { signal: `length(data('${facetLayoutDataName}'))` };
-        }
-    }
-    assembleGroupStyle() {
-        return undefined;
-    }
-    assembleGroup(signals) {
-        // super.assembleGroup assembles the marks — populating hoistedLegends/hoistedScales
-        // via assembleMarks — before it assembles this group's own scales and legends.
-        const group = this.parent && this.parent instanceof FacetModel
-            ? {
-                // Provide number of columns for layout.
-                // See discussion in https://github.com/vega/vega/issues/952
-                // and https://github.com/vega/vega-view/releases/tag/v1.2.6
-                ...(this.channelHasField('column')
-                    ? {
-                        encode: {
-                            update: {
-                                // TODO(https://github.com/vega/vega-lite/issues/2759):
-                                // Correct the signal for facet of concat of facet_column
-                                columns: { field: vgField(this.facet.column, { prefix: 'distinct' }) },
-                            },
-                        },
-                    }
-                    : {}),
-                ...super.assembleGroup(signals),
-            }
-            : super.assembleGroup(signals);
-        if (this.hoistedScales.length > 0) {
-            group.scales = [...(group.scales ?? []), ...this.hoistedScales];
-        }
-        if (this.hoistedLegends.length > 0) {
-            group.legends = [...(group.legends ?? []), ...this.hoistedLegends];
-        }
-        return group;
-    }
-    /**
-     * Aggregate cardinality for calculating size
-     */
-    getCardinalityAggregateForChild() {
-        const fields = [];
-        const ops = [];
-        const as = [];
-        if (this.child instanceof FacetModel) {
-            if (this.child.channelHasField('column')) {
-                const field = vgField(this.child.facet.column);
-                fields.push(field);
-                ops.push('distinct');
-                as.push(`distinct_${field}`);
-            }
-        }
-        else {
-            for (const channel of POSITION_SCALE_CHANNELS) {
-                const childScaleComponent = this.child.component.scales[channel];
-                if (childScaleComponent && !childScaleComponent.merged) {
-                    const type = childScaleComponent.get('type');
-                    const range = childScaleComponent.get('range');
-                    if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
-                        const domain = assembleDomain(this.child, channel);
-                        const field = getFieldFromDomain(domain);
-                        if (field) {
-                            fields.push(field);
-                            ops.push('distinct');
-                            as.push(`distinct_${field}`);
-                        }
-                        else {
-                            warn(unknownField(channel));
-                        }
-                    }
-                }
-            }
-        }
-        return { fields, ops, as };
-    }
-    assembleFacet() {
-        const { name, data } = this.component.data.facetRoot;
-        const { row, column } = this.facet;
-        const { fields, ops, as } = this.getCardinalityAggregateForChild();
-        const groupby = [];
-        for (const channel of FACET_CHANNELS) {
-            const fieldDef = this.facet[channel];
-            if (fieldDef) {
-                groupby.push(vgField(fieldDef));
-                const { bin, sort } = fieldDef;
-                if (isBinning(bin)) {
-                    groupby.push(vgField(fieldDef, { binSuffix: 'end' }));
-                }
-                // `fields` is a field reference, so a dot in the name stays escaped; `as` is
-                // the literal output name, so it must not be. They differ for dotted fields.
-                if (isSortField(sort)) {
-                    const { field, op = DEFAULT_SORT_OP } = sort;
-                    const outputName = facetSortFieldName(fieldDef, sort, { forAs: true });
-                    if (row && column) {
-                        // For crossed facet, use pre-calculate field as it requires a different groupby
-                        // For each calculated field, apply max and assign them to the same name as
-                        // all values of the same group should be the same anyway.
-                        fields.push(facetSortFieldName(fieldDef, sort));
-                        ops.push('max');
-                        as.push(outputName);
-                    }
-                    else {
-                        fields.push(field);
-                        ops.push(op);
-                        as.push(outputName);
-                    }
-                }
-                else if (isArray(sort)) {
-                    fields.push(sortArrayIndexField(fieldDef, channel));
-                    ops.push('max');
-                    as.push(sortArrayIndexField(fieldDef, channel, { forAs: true }));
-                }
-            }
-        }
-        const cross = !!row && !!column;
-        return {
-            name,
-            data,
-            groupby,
-            ...(cross || fields.length > 0
-                ? {
-                    aggregate: {
-                        ...(cross ? { cross } : {}),
-                        ...(fields.length ? { fields, ops, as } : {}),
-                    },
-                }
-                : {}),
-        };
-    }
-    facetSortFields(channel) {
-        const { facet } = this;
-        const fieldDef = facet[channel];
-        if (fieldDef) {
-            if (isSortField(fieldDef.sort)) {
-                return [facetSortFieldName(fieldDef, fieldDef.sort, { expr: 'datum' })];
-            }
-            else if (isArray(fieldDef.sort)) {
-                return [sortArrayIndexField(fieldDef, channel, { expr: 'datum' })];
-            }
-            return [vgField(fieldDef, { expr: 'datum' })];
-        }
-        return [];
-    }
-    facetSortOrder(channel) {
-        const { facet } = this;
-        const fieldDef = facet[channel];
-        if (fieldDef) {
-            const { sort } = fieldDef;
-            const order = (isSortField(sort) ? sort.order : !isArray(sort) && sort) || 'ascending';
-            return [order];
-        }
-        return [];
-    }
-    assembleLabelTitle() {
-        const { facet, config } = this;
-        if (facet.facet) {
-            // Facet always uses title to display labels
-            return assembleLabelTitle(facet.facet, 'facet', config);
-        }
-        const ORTHOGONAL_ORIENT = {
-            row: ['top', 'bottom'],
-            column: ['left', 'right'],
-        };
-        for (const channel of HEADER_CHANNELS) {
-            if (facet[channel]) {
-                const labelOrient = getHeaderProperty('labelOrient', facet[channel]?.header, config, channel);
-                if (ORTHOGONAL_ORIENT[channel].includes(labelOrient)) {
-                    // Row/Column with orthogonal labelOrient must use title to display labels
-                    return assembleLabelTitle(facet[channel], channel, config);
-                }
-            }
-        }
-        return undefined;
-    }
-    assembleMarks() {
-        const { child } = this;
-        // If we facet by two dimensions, we need to add a cross operator to the aggregation
-        // so that we create all groups
-        const facetRoot = this.component.data.facetRoot;
-        const data = assembleFacetData(facetRoot);
-        const encodeEntry = child.assembleGroupEncodeEntry(false);
-        const title = this.assembleLabelTitle() || child.assembleTitle();
-        const style = child.assembleGroupStyle();
-        const markGroup = {
-            name: this.getName('cell'),
-            type: 'group',
-            ...(title ? { title } : {}),
-            ...(style ? { style } : {}),
-            from: {
-                facet: this.assembleFacet(),
-            },
-            // TODO: move this to after data
-            sort: {
-                field: FACET_CHANNELS.map((c) => this.facetSortFields(c)).flat(),
-                order: FACET_CHANNELS.map((c) => this.facetSortOrder(c)).flat(),
-            },
-            ...(data.length > 0 ? { data } : {}),
-            ...(encodeEntry ? { encode: { update: encodeEntry } } : {}),
-            ...child.assembleGroup(assembleFacetSignals(this, [])),
-        };
-        const { legends, scales } = extractFacetSharedLegends(this, markGroup);
-        this.hoistedLegends = legends;
-        this.hoistedScales = scales;
-        return [markGroup];
-    }
-    getMapping() {
-        return this.facet;
-    }
-}
-
-function makeJoinAggregateFromFacet(parent, facet) {
-    const { row, column } = facet;
-    if (row && column) {
-        let newParent = null;
-        // only need to make one for crossed facet
-        for (const fieldDef of [row, column]) {
-            if (isSortField(fieldDef.sort)) {
-                const { field, op = DEFAULT_SORT_OP } = fieldDef.sort;
-                parent = newParent = new JoinAggregateTransformNode(parent, {
-                    joinaggregate: [
-                        {
-                            op,
-                            field,
-                            as: facetSortFieldName(fieldDef, fieldDef.sort, { forAs: true }),
-                        },
-                    ],
-                    groupby: [vgField(fieldDef)],
-                });
-            }
-        }
-        return newParent;
-    }
-    return null;
 }
 
 function findSource(data, sources) {
@@ -18868,9 +17952,6 @@ function parseData(model) {
     let facetRoot = null;
     if (isFacetModel(model)) {
         const facetName = model.getName('facet');
-        // Derive new aggregate for facet's sort field
-        // augment data source with new fields for crossed facet
-        head = makeJoinAggregateFromFacet(head, model.facet) ?? head;
         facetRoot = new FacetNode(head, model, facetName, main.getSource());
         outputNodes[facetName] = facetRoot;
     }
@@ -18892,6 +17973,124 @@ function makeOutputNode(dataSourceType, model, head) {
     const node = new OutputNode(head, name, dataSourceType, outputNodeRefCounts);
     outputNodes[name] = node;
     return node;
+}
+
+function parseLayerLayoutSize(model) {
+    parseChildrenLayoutSize(model);
+    parseNonUnitLayoutSizeForChannel(model, 'width');
+    parseNonUnitLayoutSizeForChannel(model, 'height');
+}
+function parseConcatLayoutSize(model) {
+    parseChildrenLayoutSize(model);
+    // for columns === 1 (vconcat), we can completely merge width. Otherwise, we can treat merged width as childWidth.
+    const widthType = model.layout.columns === 1 ? 'width' : 'childWidth';
+    // for columns === undefined (hconcat), we can completely merge height. Otherwise, we can treat merged height as childHeight.
+    const heightType = model.layout.columns === undefined ? 'height' : 'childHeight';
+    parseNonUnitLayoutSizeForChannel(model, widthType);
+    parseNonUnitLayoutSizeForChannel(model, heightType);
+}
+function parseChildrenLayoutSize(model) {
+    for (const child of model.children) {
+        child.parseLayoutSize();
+    }
+}
+/**
+ * Merge child layout size (width or height).
+ */
+function parseNonUnitLayoutSizeForChannel(model, layoutSizeType) {
+    /*
+     * For concat, the parent width or height might not be the same as the children's shared height.
+     * For example, hconcat's subviews may share width, but the shared width is not the hconcat view's width.
+     *
+     * layoutSizeType represents the output of the view (could be childWidth/childHeight/width/height)
+     * while the sizeType represents the properties of the child.
+     */
+    const sizeType = getSizeTypeFromLayoutSizeType(layoutSizeType);
+    const channel = getPositionScaleChannel(sizeType);
+    const resolve = model.component.resolve;
+    const layoutSizeCmpt = model.component.layoutSize;
+    let mergedSize;
+    // Try to merge layout size
+    for (const child of model.children) {
+        const childSize = child.component.layoutSize.getWithExplicit(sizeType);
+        const scaleResolve = resolve.scale[channel] ?? defaultScaleResolve(channel, model);
+        if (scaleResolve === 'independent' && childSize.value === 'step') {
+            // Do not merge independent scales with range-step as their size depends
+            // on the scale domains, which can be different between scales.
+            mergedSize = undefined;
+            break;
+        }
+        if (mergedSize) {
+            if (scaleResolve === 'independent' && mergedSize.value !== childSize.value) {
+                // For independent scale, only merge if all the sizes are the same.
+                // If the values are different, abandon the merge!
+                mergedSize = undefined;
+                break;
+            }
+            mergedSize = mergeValuesWithExplicit(mergedSize, childSize, sizeType, '');
+        }
+        else {
+            mergedSize = childSize;
+        }
+    }
+    if (mergedSize) {
+        // If merged, rename size and set size of all children.
+        for (const child of model.children) {
+            model.renameSignal(child.getName(sizeType), model.getName(layoutSizeType));
+            child.component.layoutSize.set(sizeType, 'merged', false);
+        }
+        layoutSizeCmpt.setWithExplicit(layoutSizeType, mergedSize);
+    }
+    else {
+        layoutSizeCmpt.setWithExplicit(layoutSizeType, {
+            explicit: false,
+            value: undefined,
+        });
+    }
+}
+function parseUnitLayoutSize(model) {
+    const { size, component } = model;
+    for (const channel of POSITION_SCALE_CHANNELS) {
+        const sizeType = getSizeChannel(channel);
+        if (size[sizeType] != undefined && size[sizeType] != null) {
+            const specifiedSize = size[sizeType];
+            component.layoutSize.set(sizeType, isStep(specifiedSize) ? 'step' : specifiedSize, true);
+        }
+        else {
+            const defaultSize = defaultUnitSize(model, sizeType);
+            component.layoutSize.set(sizeType, defaultSize, false);
+        }
+    }
+}
+function defaultUnitSize(model, sizeType) {
+    const channel = sizeType === 'width' ? 'x' : 'y';
+    const config = model.config;
+    const scaleComponent = model.getScaleComponent(channel);
+    if (scaleComponent) {
+        const scaleType = scaleComponent.get('type');
+        const range = scaleComponent.get('range');
+        if (hasDiscreteDomain(scaleType)) {
+            const size = getViewConfigDiscreteSize(config.view, sizeType);
+            if (isVgRangeStep(range) || isStep(size)) {
+                // For discrete domain with range.step, use dynamic width/height
+                return 'step';
+            }
+            else {
+                return size;
+            }
+        }
+        else {
+            return getViewConfigContinuousSize(config.view, sizeType);
+        }
+    }
+    else if (model.hasProjection || model.mark === 'arc') {
+        // arc should use continuous size by default otherwise the pie is extremely small
+        return getViewConfigContinuousSize(config.view, sizeType);
+    }
+    else {
+        const size = getViewConfigDiscreteSize(config.view, sizeType);
+        return isStep(size) ? size.step : size;
+    }
 }
 
 class ConcatModel extends Model {
@@ -18999,6 +18198,827 @@ class ConcatModel extends Model {
     }
 }
 
+function makeWalkTree(data, namePrefix = 'data') {
+    // to name datasources
+    let datasetIndex = 0;
+    /**
+     * Recursively walk down the tree.
+     */
+    function walkTree(node, dataSource) {
+        if (node instanceof SourceNode) {
+            // If the source is a named data source or a data source with values, we need
+            // to put it in a different data source. Otherwise, Vega may override the data.
+            if (!node.isGenerator && !isUrlData(node.data)) {
+                data.push(dataSource);
+                const newData = {
+                    name: null,
+                    source: dataSource.name,
+                    transform: [],
+                };
+                dataSource = newData;
+            }
+        }
+        if (node instanceof ParseNode) {
+            if (node.parent instanceof SourceNode && !dataSource.source) {
+                // If node's parent is a root source and the data source does not refer to another data source, use normal format parse
+                dataSource.format = {
+                    ...dataSource.format,
+                    parse: node.assembleFormatParse(),
+                };
+                // add calculates for all nested fields
+                dataSource.transform.push(...node.assembleTransforms(true));
+            }
+            else {
+                // Otherwise use Vega expression to parse
+                dataSource.transform.push(...node.assembleTransforms());
+            }
+        }
+        if (node instanceof FacetNode) {
+            if (!dataSource.name) {
+                dataSource.name = `${namePrefix}_${datasetIndex++}`;
+            }
+            if (!dataSource.source || dataSource.transform.length > 0) {
+                data.push(dataSource);
+                node.data = dataSource.name;
+            }
+            else {
+                node.data = dataSource.source;
+            }
+            data.push(...node.assemble());
+            // break here because the rest of the tree has to be taken care of by the facet.
+            return;
+        }
+        if (node instanceof GraticuleNode ||
+            node instanceof SequenceNode ||
+            node instanceof FilterInvalidNode ||
+            node instanceof FilterNode ||
+            node instanceof CalculateNode ||
+            node instanceof GeoPointNode ||
+            node instanceof AggregateNode ||
+            node instanceof LookupNode ||
+            node instanceof WindowTransformNode ||
+            node instanceof JoinAggregateTransformNode ||
+            node instanceof FoldTransformNode ||
+            node instanceof FlattenTransformNode ||
+            node instanceof DensityTransformNode ||
+            node instanceof LoessTransformNode ||
+            node instanceof QuantileTransformNode ||
+            node instanceof RegressionTransformNode ||
+            node instanceof IdentifierNode ||
+            node instanceof SampleTransformNode ||
+            node instanceof PivotTransformNode ||
+            node instanceof ExtentTransformNode) {
+            dataSource.transform.push(node.assemble());
+        }
+        if (node instanceof BinNode ||
+            node instanceof TimeUnitNode ||
+            node instanceof ImputeNode ||
+            node instanceof StackNode ||
+            node instanceof GeoJSONNode) {
+            dataSource.transform.push(...node.assemble());
+        }
+        if (node instanceof OutputNode) {
+            if (dataSource.source && dataSource.transform.length === 0) {
+                node.setSource(dataSource.source);
+            }
+            else if (node.parent instanceof OutputNode) {
+                // Note that an output node may be required but we still do not assemble a
+                // separate data source for it.
+                node.setSource(dataSource.name);
+            }
+            else {
+                if (!dataSource.name) {
+                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
+                }
+                // Here we set the name of the datasource we generated. From now on
+                // other assemblers can use it.
+                node.setSource(dataSource.name);
+                // if this node has more than one child, we will add a datasource automatically
+                if (node.numChildren() === 1) {
+                    data.push(dataSource);
+                    const newData = {
+                        name: null,
+                        source: dataSource.name,
+                        transform: [],
+                    };
+                    dataSource = newData;
+                }
+            }
+        }
+        switch (node.numChildren()) {
+            case 0:
+                // done
+                if (node instanceof OutputNode && (!dataSource.source || dataSource.transform.length > 0)) {
+                    // do not push empty datasources that are simply references
+                    data.push(dataSource);
+                }
+                break;
+            case 1:
+                walkTree(node.children[0], dataSource);
+                break;
+            default: {
+                if (!dataSource.name) {
+                    dataSource.name = `${namePrefix}_${datasetIndex++}`;
+                }
+                let source = dataSource.name;
+                if (!dataSource.source || dataSource.transform.length > 0) {
+                    data.push(dataSource);
+                }
+                else {
+                    source = dataSource.source;
+                }
+                for (const child of node.children) {
+                    const newData = {
+                        name: null,
+                        source,
+                        transform: [],
+                    };
+                    walkTree(child, newData);
+                }
+                break;
+            }
+        }
+    }
+    return walkTree;
+}
+/**
+ * Assemble data sources that are derived from faceted data.
+ */
+function assembleFacetData(root) {
+    const data = [];
+    // Facet-scoped datasets get their own prefix: this walk restarts its counter at
+    // 0, so plain `data_N` names collide with the top-level ones. Vega resolves a
+    // reference in the innermost scope, so a cell dataset would silently shadow the
+    // top-level dataset of the same name — which breaks a scale inside the cell that
+    // deliberately points at the shared (post-facet) copy of the data for its domain.
+    const walkTree = makeWalkTree(data, 'facet_data');
+    for (const child of root.children) {
+        walkTree(child, {
+            source: root.name,
+            name: null,
+            transform: [],
+        });
+    }
+    return data;
+}
+/**
+ * Create Vega data array from a given compiled model and append all of them to the given array
+ *
+ * @param  model
+ * @param  data array
+ * @return modified data array
+ */
+function assembleRootData(dataComponent, datasets) {
+    const data = [];
+    // dataComponent.sources.forEach(debug);
+    // draw(dataComponent.sources);
+    const walkTree = makeWalkTree(data);
+    let sourceIndex = 0;
+    for (const root of dataComponent.sources) {
+        // assign a name if the source does not have a name yet
+        if (!root.hasName()) {
+            root.dataName = `source_${sourceIndex++}`;
+        }
+        const newData = root.assemble();
+        walkTree(root, newData);
+    }
+    // remove empty transform arrays for cleaner output
+    for (const d of data) {
+        if (d.transform.length === 0) {
+            delete d.transform;
+        }
+    }
+    // move sources without transforms (the ones that are potentially used in lookups) to the beginning
+    let whereTo = 0;
+    for (const [i, d] of data.entries()) {
+        if ((d.transform ?? []).length === 0 && !d.source) {
+            data.splice(whereTo++, 0, data.splice(i, 1)[0]);
+        }
+    }
+    // now fix the from references in lookup transforms
+    for (const d of data) {
+        for (const t of d.transform ?? []) {
+            if (t.type === 'lookup') {
+                t.from = dataComponent.outputNodes[t.from].getSource();
+            }
+        }
+    }
+    // inline values for datasets that are in the datastore
+    for (const d of data) {
+        if (d.name in datasets) {
+            d.values = datasets[d.name];
+        }
+    }
+    return data;
+}
+
+function getHeaderType(orient) {
+    if (orient === 'top' || orient === 'left' || isSignalRef(orient)) {
+        // we always use header for orient signal since we can't dynamically make header becomes footer
+        return 'header';
+    }
+    return 'footer';
+}
+function parseFacetHeaders(model) {
+    for (const channel of FACET_CHANNELS) {
+        parseFacetHeader(model, channel);
+    }
+    mergeChildAxis(model, 'x');
+    mergeChildAxis(model, 'y');
+}
+function parseFacetHeader(model, channel) {
+    const { facet, config, child, component } = model;
+    if (model.channelHasField(channel)) {
+        const fieldDef = facet[channel];
+        const titleConfig = getHeaderProperty('title', null, config, channel);
+        let title$1 = title(fieldDef, config, {
+            allowDisabling: true,
+            includeDefault: titleConfig === undefined || !!titleConfig,
+        });
+        if (child.component.layoutHeaders[channel].title) {
+            // TODO: better handle multiline titles
+            title$1 = isArray(title$1) ? title$1.join(', ') : title$1;
+            // merge title with child to produce "Title / Subtitle / Sub-subtitle"
+            title$1 += ` / ${child.component.layoutHeaders[channel].title}`;
+            child.component.layoutHeaders[channel].title = null;
+        }
+        const labelOrient = getHeaderProperty('labelOrient', fieldDef.header, config, channel);
+        const labels = fieldDef.header !== null ? getFirstDefined(fieldDef.header?.labels, config.header.labels, true) : false;
+        const headerType = contains(['bottom', 'right'], labelOrient) ? 'footer' : 'header';
+        component.layoutHeaders[channel] = {
+            title: fieldDef.header !== null ? title$1 : null,
+            facetFieldDef: fieldDef,
+            [headerType]: channel === 'facet' ? [] : [makeHeaderComponent(model, channel, labels)],
+        };
+    }
+}
+function makeHeaderComponent(model, channel, labels) {
+    const sizeType = channel === 'row' ? 'height' : 'width';
+    return {
+        labels,
+        sizeSignal: model.child.component.layoutSize.get(sizeType) ? model.child.getSizeSignalRef(sizeType) : undefined,
+        axes: [],
+    };
+}
+/**
+ * Whether a facet's child scopes this channel's scales below itself rather than exposing
+ * a single merged scale. When a non-unit model resolves the channel as `independent`,
+ * `parseNonUnitScaleCore` leaves no merged scale component on it and each of its children
+ * keeps its own scale — which is assembled inside the facet's cell group.
+ *
+ * The independent resolve can sit at any depth (e.g. a layer whose own child layer
+ * declares it), so walk the subtree rather than checking the direct child only.
+ */
+function childHasIndependentScale(child, channel) {
+    if (isUnitModel(child)) {
+        return false;
+    }
+    if (child.component.resolve.scale[channel] === 'independent') {
+        return true;
+    }
+    return child.children.some((grandchild) => childHasIndependentScale(grandchild, channel));
+}
+function mergeChildAxis(model, channel) {
+    const { child } = model;
+    if (child.component.axes[channel]) {
+        const { layoutHeaders, resolve } = model.component;
+        resolve.axis[channel] = parseGuideResolve(resolve, channel);
+        // A facet child that resolves this channel's scale independently (e.g. a layer
+        // with `resolve: {scale: {y: 'independent'}}`) assembles those scales *inside*
+        // the cell group. Hoisting its axes into the facet's row/column header would
+        // reference a scale that does not exist in that scope, so keep them in the cell.
+        if (childHasIndependentScale(child, channel)) {
+            resolve.axis[channel] = 'independent';
+        }
+        if (resolve.axis[channel] === 'shared') {
+            // For shared axis, move the axes to facet's header or footer
+            const headerChannel = channel === 'x' ? 'column' : 'row';
+            const layoutHeader = layoutHeaders[headerChannel];
+            for (const axisComponent of child.component.axes[channel]) {
+                const headerType = getHeaderType(axisComponent.get('orient'));
+                layoutHeader[headerType] ??= [makeHeaderComponent(model, headerChannel, false)];
+                // FIXME: assemble shouldn't be called here, but we do it this way so we only extract the main part of the axes
+                const mainAxis = assembleAxis(axisComponent, 'main', model.config, { header: true });
+                if (mainAxis) {
+                    // LayoutHeader no longer keep track of property precedence, thus let's combine.
+                    layoutHeader[headerType][0].axes.push(mainAxis);
+                }
+                axisComponent.mainExtracted = true;
+            }
+        }
+    }
+}
+
+function facetSortFieldName(fieldDef, sort, opt) {
+    return vgField(sort, { suffix: `by_${vgField(fieldDef)}`, ...opt });
+}
+function rankProperty(channel) {
+    return `${channel}_rank`;
+}
+function legendScaleNames(legend) {
+    return LEGEND_SCALE_CHANNELS.map((prop) => legend[prop]).filter((name) => !!name);
+}
+function referencesCellScope(value, cellDataNames, cellSignalTests) {
+    if (isArray(value)) {
+        return value.some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
+    }
+    if (isObject(value)) {
+        const { data, signal } = value;
+        if (isString(data) && cellDataNames.has(data)) {
+            return true;
+        }
+        if (isString(signal) && cellSignalTests.some((test) => test.test(signal))) {
+            return true;
+        }
+        return vals(value).some((entry) => referencesCellScope(entry, cellDataNames, cellSignalTests));
+    }
+    return false;
+}
+/**
+ * Map each scale assembled somewhere in this subtree back to the channel it
+ * encodes. Merged components are skipped: their scales assemble under the name
+ * of the component they merged into, which its owner reports.
+ */
+function collectScaleChannels(model, index) {
+    for (const channel of keys(model.component.scales)) {
+        const scaleComponent = model.component.scales[channel];
+        if (!scaleComponent.merged) {
+            index.set(scaleComponent.get('name'), channel);
+        }
+    }
+    for (const child of model.children) {
+        collectScaleChannels(child, index);
+    }
+}
+/**
+ * Split out of the cell group the legends for channels the facet resolves as
+ * shared, together with the scales they reference, so the facet's own group can
+ * render them once.
+ *
+ * A facet child that resolves a non-position channel independently (e.g. a layer
+ * with `resolve: {scale: {color: 'independent'}}`) keeps those scales on its
+ * units, so they — and their legends — assemble inside the repeated cell group:
+ * the legend renders once per facet value, laid out inside the cell between the
+ * plot and any hoisted axes. The sibling-level independent resolve says nothing
+ * about sharing across cells; that is the facet's own resolve, and when it says
+ * 'shared' (the default) the legend belongs on the facet's group. The referenced
+ * scales must move with it because a legend cannot reach a scale defined in a
+ * sibling scope, while the cell's marks still resolve the moved scale by walking
+ * up to the enclosing scope.
+ *
+ * The hoist additionally requires each scale to be facet-invariant — nothing in
+ * it may reference a dataset or signal scoped to the cell. A facet-shared scale
+ * assembles that way (explicit domains, or domains reading the shared post-facet
+ * datasets), so this is a safety condition rather than a second policy: moving a
+ * scale with a cell-scoped reference would leave it dangling, which is strictly
+ * worse than the duplicated legend it fixes.
+ */
+function extractFacetSharedLegends(model, cell) {
+    const cellLegends = cell.legends ?? [];
+    const cellScales = cell.scales ?? [];
+    if (cellLegends.length === 0 || cellScales.length === 0) {
+        return { legends: [], scales: [] };
+    }
+    const scaleByName = new Map(cellScales.map((scale) => [scale.name, scale]));
+    const scaleChannels = new Map();
+    collectScaleChannels(model, scaleChannels);
+    const cellDataNames = new Set([
+        ...(cell.data ?? []).map((dataset) => dataset.name),
+        cell.from.facet.name,
+    ]);
+    const cellSignalTests = (cell.signals ?? []).map(({ name }) => new RegExp(`\\b${name}\\b`));
+    // The facet has no scale component of its own on these channels, so its resolve
+    // may never have been defaulted — same fallback as parseUnitScaleDomain.
+    const facetResolvesShared = (channel) => (model.component.resolve.scale[channel] ?? defaultScaleResolve(channel, model)) === 'shared';
+    const isHoistable = (legend) => {
+        const scaleNames = legendScaleNames(legend);
+        return (scaleNames.length > 0 &&
+            scaleNames.every((name) => {
+                const channel = scaleChannels.get(name);
+                const scale = scaleByName.get(name);
+                return (channel !== undefined &&
+                    facetResolvesShared(channel) &&
+                    scale !== undefined &&
+                    !referencesCellScope(scale, cellDataNames, cellSignalTests));
+            }));
+    };
+    const legends = cellLegends.filter(isHoistable);
+    if (legends.length === 0) {
+        return { legends: [], scales: [] };
+    }
+    const scaleNamesToHoist = new Set(legends.flatMap(legendScaleNames));
+    const remainingLegends = cellLegends.filter((legend) => !legends.includes(legend));
+    if (remainingLegends.length > 0) {
+        cell.legends = remainingLegends;
+    }
+    else {
+        delete cell.legends;
+    }
+    const remainingScales = cellScales.filter((scale) => !scaleNamesToHoist.has(scale.name));
+    if (remainingScales.length > 0) {
+        cell.scales = remainingScales;
+    }
+    else {
+        delete cell.scales;
+    }
+    return { legends, scales: cellScales.filter((scale) => scaleNamesToHoist.has(scale.name)) };
+}
+class FacetModel extends ModelWithField {
+    facet;
+    child;
+    children;
+    hoistedLegends = [];
+    hoistedScales = [];
+    rankedChannels;
+    constructor(spec, parent, parentGivenName, config) {
+        super(spec, 'facet', parent, parentGivenName, config, spec.resolve);
+        this.child = buildModel(spec.spec, this, this.getName('child'), undefined, config);
+        this.children = [this.child];
+        this.size = {
+            ...(spec.width ? { width: spec.width } : {}),
+            ...(spec.height ? { height: spec.height } : {}),
+        };
+        this.facet = this.initFacet(spec.facet);
+        this.rankedChannels = rankedChannels(this.facet);
+    }
+    initFacet(facet) {
+        // clone to prevent side effect to the original spec
+        if (!isFacetMapping(facet)) {
+            return { facet: this.initFacetFieldDef(facet, 'facet') };
+        }
+        const channels = keys(facet);
+        const normalizedFacet = {};
+        for (const channel of channels) {
+            if (![ROW, COLUMN].includes(channel)) {
+                // Drop unsupported channel
+                warn(incompatibleChannel(channel, 'facet'));
+                break;
+            }
+            const fieldDef = facet[channel];
+            if (fieldDef.field === undefined) {
+                warn(emptyFieldDef(fieldDef, channel));
+                break;
+            }
+            normalizedFacet[channel] = this.initFacetFieldDef(fieldDef, channel);
+        }
+        return normalizedFacet;
+    }
+    initFacetFieldDef(fieldDef, channel) {
+        // Cast because we call initFieldDef, which assumes general FieldDef.
+        // However, FacetFieldDef is a bit more constrained than the general FieldDef
+        const facetFieldDef = initFieldDef(fieldDef, channel);
+        if (facetFieldDef.header) {
+            facetFieldDef.header = replaceExprRef(facetFieldDef.header);
+        }
+        else if (facetFieldDef.header === null) {
+            facetFieldDef.header = null;
+        }
+        return facetFieldDef;
+    }
+    channelHasField(channel) {
+        return hasProperty(this.facet, channel);
+    }
+    fieldDef(channel) {
+        return this.facet[channel];
+    }
+    parseData() {
+        this.component.data = parseData(this);
+        this.child.parseData();
+    }
+    parseLayoutSize() {
+        parseChildrenLayoutSize(this);
+        const { size, component } = this;
+        for (const dimension of ['width', 'height']) {
+            const specifiedSize = size[dimension];
+            if (specifiedSize) {
+                component.layoutSize.set(dimension, isStep(specifiedSize) ? 'step' : specifiedSize, true);
+            }
+        }
+    }
+    parseSelections() {
+        // As a facet has a single child, the selection components are the same.
+        // The child maintains its selections to assemble signals, which remain
+        // within its unit.
+        this.child.parseSelections();
+        this.component.selection = this.child.component.selection;
+        if (vals(this.component.selection).some((selCmpt) => isTimerSelection(selCmpt))) {
+            error(MULTI_VIEW_ANIMATION_UNSUPPORTED);
+        }
+    }
+    parseMarkGroup() {
+        this.child.parseMarkGroup();
+    }
+    parseAxesAndHeaders() {
+        this.child.parseAxesAndHeaders();
+        parseFacetHeaders(this);
+    }
+    assembleSelectionTopLevelSignals(signals) {
+        return this.child.assembleSelectionTopLevelSignals(signals);
+    }
+    assembleSignals() {
+        this.child.assembleSignals();
+        return [];
+    }
+    assembleSelectionData(data) {
+        return this.child.assembleSelectionData(data);
+    }
+    getHeaderLayoutMixins() {
+        const layoutMixins = {};
+        for (const channel of FACET_CHANNELS) {
+            for (const headerType of HEADER_TYPES) {
+                const layoutHeaderComponent = this.component.layoutHeaders[channel];
+                const headerComponent = layoutHeaderComponent[headerType];
+                const { facetFieldDef } = layoutHeaderComponent;
+                if (facetFieldDef) {
+                    const titleOrient = getHeaderProperty('titleOrient', facetFieldDef.header, this.config, channel);
+                    if (['right', 'bottom'].includes(titleOrient)) {
+                        const headerChannel = getHeaderChannel(channel, titleOrient);
+                        layoutMixins.titleAnchor ??= {};
+                        layoutMixins.titleAnchor[headerChannel] = 'end';
+                    }
+                }
+                if (headerComponent?.[0]) {
+                    // set header/footerBand
+                    const sizeType = channel === 'row' ? 'height' : 'width';
+                    const bandType = headerType === 'header' ? 'headerBand' : 'footerBand';
+                    if (channel !== 'facet' && !this.child.component.layoutSize.get(sizeType)) {
+                        // If facet child does not have size signal, then apply headerBand
+                        layoutMixins[bandType] ??= {};
+                        layoutMixins[bandType][channel] = 0.5;
+                    }
+                    if (layoutHeaderComponent.title) {
+                        layoutMixins.offset ??= {};
+                        layoutMixins.offset[channel === 'row' ? 'rowTitle' : 'columnTitle'] = 10;
+                    }
+                }
+            }
+        }
+        return layoutMixins;
+    }
+    assembleDefaultLayout() {
+        const { column, row } = this.facet;
+        const columns = column ? this.columnDistinctSignal() : row ? 1 : undefined;
+        let align = 'all';
+        // Do not align the cells if the scale corresponding to the direction is indepent.
+        // We always align when we facet into both row and column.
+        if (!row && this.component.resolve.scale.x === 'independent') {
+            align = 'none';
+        }
+        else if (!column && this.component.resolve.scale.y === 'independent') {
+            align = 'none';
+        }
+        return {
+            ...this.getHeaderLayoutMixins(),
+            ...(columns ? { columns } : {}),
+            bounds: 'full',
+            align,
+        };
+    }
+    assembleLayoutSignals() {
+        const layoutSignals = assembleLayoutSignals(this);
+        for (const signal of this.child.assembleLayoutSignals()) {
+            const currentSignals = layoutSignals.map((s) => s.name);
+            if (!currentSignals.includes(signal.name)) {
+                layoutSignals.push(signal);
+            }
+        }
+        return layoutSignals;
+    }
+    columnDistinctSignal() {
+        if (this.parent && this.parent instanceof FacetModel) {
+            // For nested facet, we will add columns to group mark instead
+            // See discussion in https://github.com/vega/vega/issues/952
+            // and https://github.com/vega/vega-view/releases/tag/v1.2.6
+            return undefined;
+        }
+        else {
+            // In facetNode.assemble(), the name is always this.getName('column') + '_layout'.
+            const facetLayoutDataName = this.getName('column_domain');
+            return { signal: `length(data('${facetLayoutDataName}'))` };
+        }
+    }
+    assembleGroupStyle() {
+        return undefined;
+    }
+    assembleGroup(signals) {
+        // super.assembleGroup assembles the marks — populating hoistedLegends/hoistedScales
+        // via assembleMarks — before it assembles this group's own scales and legends.
+        const group = this.parent && this.parent instanceof FacetModel
+            ? {
+                // Provide number of columns for layout.
+                // See discussion in https://github.com/vega/vega/issues/952
+                // and https://github.com/vega/vega-view/releases/tag/v1.2.6
+                ...(this.channelHasField('column')
+                    ? {
+                        encode: {
+                            update: {
+                                // TODO(https://github.com/vega/vega-lite/issues/2759):
+                                // Correct the signal for facet of concat of facet_column
+                                columns: { field: vgField(this.facet.column, { prefix: 'distinct' }) },
+                            },
+                        },
+                    }
+                    : {}),
+                ...super.assembleGroup(signals),
+            }
+            : super.assembleGroup(signals);
+        const scales = [...this.hoistedScales, ...this.assembleRankScales()];
+        if (scales.length > 0) {
+            group.scales = [...(group.scales ?? []), ...scales];
+        }
+        if (this.hoistedLegends.length > 0) {
+            group.legends = [...(group.legends ?? []), ...this.hoistedLegends];
+        }
+        return group;
+    }
+    /**
+     * Aggregate cardinality for calculating size
+     */
+    getCardinalityAggregateForChild() {
+        const fields = [];
+        const ops = [];
+        const as = [];
+        if (this.child instanceof FacetModel) {
+            if (this.child.channelHasField('column')) {
+                const field = vgField(this.child.facet.column);
+                fields.push(field);
+                ops.push('distinct');
+                as.push(`distinct_${field}`);
+            }
+        }
+        else {
+            for (const channel of POSITION_SCALE_CHANNELS) {
+                const childScaleComponent = this.child.component.scales[channel];
+                if (childScaleComponent && !childScaleComponent.merged) {
+                    const type = childScaleComponent.get('type');
+                    const range = childScaleComponent.get('range');
+                    if (hasDiscreteDomain(type) && isVgRangeStep(range)) {
+                        const domain = assembleDomain(this.child, channel);
+                        const field = getFieldFromDomain(domain);
+                        if (field) {
+                            fields.push(field);
+                            ops.push('distinct');
+                            as.push(`distinct_${field}`);
+                        }
+                        else {
+                            warn(unknownField(channel));
+                        }
+                    }
+                }
+            }
+        }
+        return { fields, ops, as };
+    }
+    assembleFacet() {
+        const { name, data } = this.component.data.facetRoot;
+        const { row, column } = this.facet;
+        const { fields, ops, as } = this.getCardinalityAggregateForChild();
+        const groupby = [];
+        const cross = !!row && !!column;
+        for (const channel of FACET_CHANNELS) {
+            const fieldDef = this.facet[channel];
+            if (fieldDef) {
+                groupby.push(vgField(fieldDef));
+                const { bin, sort } = fieldDef;
+                if (isBinning(bin)) {
+                    groupby.push(vgField(fieldDef, { binSuffix: 'end' }));
+                }
+                // Crossed cells sort by rank instead; see rankedChannels.
+                if (cross) {
+                    continue;
+                }
+                // `fields` is a field reference, so a dot in the name stays escaped; `as` is
+                // the literal output name, so it must not be. They differ for dotted fields.
+                if (isSortField(sort)) {
+                    const { field, op = DEFAULT_SORT_OP } = sort;
+                    fields.push(field);
+                    ops.push(op);
+                    as.push(facetSortFieldName(fieldDef, sort, { forAs: true }));
+                }
+                else if (isArray(sort)) {
+                    fields.push(sortArrayIndexField(fieldDef, channel));
+                    ops.push('max');
+                    as.push(sortArrayIndexField(fieldDef, channel, { forAs: true }));
+                }
+            }
+        }
+        return {
+            name,
+            data,
+            groupby,
+            ...(cross || fields.length > 0
+                ? {
+                    aggregate: {
+                        ...(cross ? { cross } : {}),
+                        ...(fields.length ? { fields, ops, as } : {}),
+                    },
+                }
+                : {}),
+        };
+    }
+    facetSortFields(channel) {
+        const { facet } = this;
+        const fieldDef = facet[channel];
+        if (fieldDef) {
+            if (this.rankedChannels.includes(channel)) {
+                return [rankProperty(channel)];
+            }
+            else if (isSortField(fieldDef.sort)) {
+                return [facetSortFieldName(fieldDef, fieldDef.sort, { expr: 'datum' })];
+            }
+            else if (isArray(fieldDef.sort)) {
+                return [sortArrayIndexField(fieldDef, channel, { expr: 'datum' })];
+            }
+            return [vgField(fieldDef, { expr: 'datum' })];
+        }
+        return [];
+    }
+    // The domain sorts in the header's direction, so keys that tie keep the header's
+    // order, and cells sort ascending by rank.
+    assembleRankScales() {
+        return this.rankedChannels.map((channel) => ({
+            name: this.getName(rankProperty(channel)),
+            type: 'point',
+            domain: {
+                data: this.getName(`${channel}_domain`),
+                field: vgField(this.facet[channel]),
+                sort: { field: rankSortKey(channel), op: 'max', order: this.headerSortOrder(channel) },
+            },
+            range: [0, 1],
+        }));
+    }
+    headerSortOrder(channel) {
+        const { sort } = this.facet[channel];
+        return (isSortField(sort) ? sort.order : !isArray(sort) && sort) || 'ascending';
+    }
+    facetSortOrder(channel) {
+        if (!this.facet[channel]) {
+            return [];
+        }
+        return [this.rankedChannels.includes(channel) ? 'ascending' : this.headerSortOrder(channel)];
+    }
+    assembleLabelTitle() {
+        const { facet, config } = this;
+        if (facet.facet) {
+            // Facet always uses title to display labels
+            return assembleLabelTitle(facet.facet, 'facet', config);
+        }
+        const ORTHOGONAL_ORIENT = {
+            row: ['top', 'bottom'],
+            column: ['left', 'right'],
+        };
+        for (const channel of HEADER_CHANNELS) {
+            if (facet[channel]) {
+                const labelOrient = getHeaderProperty('labelOrient', facet[channel]?.header, config, channel);
+                if (ORTHOGONAL_ORIENT[channel].includes(labelOrient)) {
+                    // Row/Column with orthogonal labelOrient must use title to display labels
+                    return assembleLabelTitle(facet[channel], channel, config);
+                }
+            }
+        }
+        return undefined;
+    }
+    assembleMarks() {
+        const { child } = this;
+        // If we facet by two dimensions, we need to add a cross operator to the aggregation
+        // so that we create all groups
+        const facetRoot = this.component.data.facetRoot;
+        const data = assembleFacetData(facetRoot);
+        const encodeEntry = child.assembleGroupEncodeEntry(false);
+        const rankEntry = Object.fromEntries(this.rankedChannels.map((channel) => [
+            rankProperty(channel),
+            { scale: this.getName(rankProperty(channel)), field: vgField(this.facet[channel]) },
+        ]));
+        const update = { ...encodeEntry, ...rankEntry };
+        const title = this.assembleLabelTitle() || child.assembleTitle();
+        const style = child.assembleGroupStyle();
+        const markGroup = {
+            name: this.getName('cell'),
+            type: 'group',
+            ...(title ? { title } : {}),
+            ...(style ? { style } : {}),
+            from: {
+                facet: this.assembleFacet(),
+            },
+            // TODO: move this to after data
+            sort: {
+                field: FACET_CHANNELS.map((c) => this.facetSortFields(c)).flat(),
+                order: FACET_CHANNELS.map((c) => this.facetSortOrder(c)).flat(),
+            },
+            ...(data.length > 0 ? { data } : {}),
+            ...(keys(update).length > 0 ? { encode: { update } } : {}),
+            ...child.assembleGroup(assembleFacetSignals(this, [])),
+        };
+        const { legends, scales } = extractFacetSharedLegends(this, markGroup);
+        this.hoistedLegends = legends;
+        this.hoistedScales = scales;
+        return [markGroup];
+    }
+    getMapping() {
+        return this.facet;
+    }
+}
+
 function isFalseOrNull(v) {
     return v === false || v === null;
 }
@@ -19046,15 +19066,17 @@ function labels(model, channel, specifiedLabelsSpec) {
     const fieldOrDatumDef = getFieldOrDatumDef(encoding[channel]) ?? getFieldOrDatumDef(encoding[getSecondaryRangeChannel(channel)]);
     const axis = model.axis(channel) || {};
     const { format, formatType } = axis;
+    const logScale = model.getScaleComponent(channel)?.get('type') === 'log';
+    // Vega blanks most of a log axis's tick labels, but only in datum.label; a custom
+    // format reads datum.value, so it keeps that choice by labeling only what Vega did.
+    // Parenthesized, as a labelExpr substitutes it for datum.label.
+    const customText = (custom) => {
+        const text = formatCustomType({ fieldOrDatumDef, field: 'datum.value', ...custom, config });
+        return logScale ? { signal: `(datum.label ? ${text.signal} : '')` } : text;
+    };
     if (isCustomFormatType(formatType)) {
         return {
-            text: formatCustomType({
-                fieldOrDatumDef,
-                field: 'datum.value',
-                format,
-                formatType,
-                config,
-            }),
+            text: customText({ format, formatType }),
             ...specifiedLabelsSpec,
         };
     }
@@ -19064,25 +19086,13 @@ function labels(model, channel, specifiedLabelsSpec) {
                 fieldOrDatumDef.stack === 'normalize' &&
                 config.normalizedNumberFormatType) {
                 return {
-                    text: formatCustomType({
-                        fieldOrDatumDef,
-                        field: 'datum.value',
-                        format: config.normalizedNumberFormat,
-                        formatType: config.normalizedNumberFormatType,
-                        config,
-                    }),
+                    text: customText({ format: config.normalizedNumberFormat, formatType: config.normalizedNumberFormatType }),
                     ...specifiedLabelsSpec,
                 };
             }
             else if (config.numberFormatType) {
                 return {
-                    text: formatCustomType({
-                        fieldOrDatumDef,
-                        field: 'datum.value',
-                        format: config.numberFormat,
-                        formatType: config.numberFormatType,
-                        config,
-                    }),
+                    text: customText({ format: config.numberFormat, formatType: config.numberFormatType }),
                     ...specifiedLabelsSpec,
                 };
             }
@@ -19092,13 +19102,7 @@ function labels(model, channel, specifiedLabelsSpec) {
             isFieldDef(fieldOrDatumDef) &&
             !fieldOrDatumDef.timeUnit) {
             return {
-                text: formatCustomType({
-                    fieldOrDatumDef,
-                    field: 'datum.value',
-                    format: config.timeFormat,
-                    formatType: config.timeFormatType,
-                    config,
-                }),
+                text: customText({ format: config.timeFormat, formatType: config.timeFormatType }),
                 ...specifiedLabelsSpec,
             };
         }

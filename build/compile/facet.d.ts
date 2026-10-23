@@ -14,6 +14,7 @@ export declare class FacetModel extends ModelWithField {
     readonly children: Model[];
     private hoistedLegends;
     private hoistedScales;
+    private readonly rankedChannels;
     constructor(spec: NormalizedFacetSpec, parent: Model, parentGivenName: string, config: Config<SignalRef>);
     private initFacet;
     private initFacetFieldDef;
@@ -39,6 +40,8 @@ export declare class FacetModel extends ModelWithField {
     private getCardinalityAggregateForChild;
     private assembleFacet;
     private facetSortFields;
+    private assembleRankScales;
+    private headerSortOrder;
     private facetSortOrder;
     private assembleLabelTitle;
     assembleMarks(): VgMarkGroup[];

@@ -1,4 +1,4 @@
-import type { BaseLegend, Color, LabelOverlap, LayoutBounds, Legend as VgLegend, LegendConfig as VgLegendConfig, LegendLayout as VgLegendLayout, LegendOrient, Orientation, SignalRef, TitleAnchor } from 'vega';
+import type { BaseLegend, Color, LabelOverlap, LayoutBounds, Legend as VgLegend, LegendConfig as VgLegendConfig, LegendLayout as VgLegendLayout, LegendOrient, Orientation, SignalRef, TitleAnchor, TitleFrame } from 'vega';
 import { DateTime } from './datetime.js';
 import { ExprRef } from './expr.js';
 import { Guide, GuideEncodingEntry, VlOnlyGuideConfig } from './guide.js';
@@ -23,6 +23,10 @@ export interface BaseLegendLayout {
      * The layout direction for legend orient group layout.
      */
     direction?: Orientation;
+    /**
+     * The reference frame for the anchor position, one of `"group"` (the default, to anchor relative to the group width or height) or `"bounds"` (to anchor relative to the full bounding box).
+     */
+    frame?: TitleFrame;
     /**
      * The pixel margin between legends within a orient group.
      */
