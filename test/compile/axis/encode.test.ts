@@ -104,19 +104,17 @@ describe('compile/axis/encode', () => {
       expect(labels).toEqual({});
     });
 
-    it.each([
-      ['axis format type', {formatType: 'customNumberFormat'}, {}],
-      ['config number format type', {}, {numberFormatType: 'customNumberFormat'}],
-    ])("labels the log ticks Vega's own format labels, with a custom %s", async (_, axis, config) => {
-      expressionFunction('customNumberFormat', (value: number) => `#${value}`);
-      const labeled = async (axisFormat: object, configFormat: object) => {
+    describe('on a log scale with a custom format', () => {
+      beforeAll(() => {
+        expressionFunction('customNumberFormat', (value: number) => `#${value}`);
+      });
+
+      const labelTexts = async (axis: object, config: object) => {
         const {spec} = compile({
           data: {values: [{a: 25}, {a: 45000}]},
           mark: 'point',
-          encoding: {
-            y: {field: 'a', type: 'quantitative', scale: {type: 'log'}, axis: {labelOverlap: false, ...axisFormat}},
-          },
-          config: {customFormatTypes: true, ...configFormat},
+          encoding: {y: {field: 'a', type: 'quantitative', scale: {type: 'log'}, axis: {labelOverlap: false, ...axis}}},
+          config: {customFormatTypes: true, ...config},
         });
         const view = new View(parse(spec), {renderer: 'none'});
         await view.runAsync();
@@ -124,13 +122,30 @@ describe('compile/axis/encode', () => {
           .filter((m: any) => m.role === 'axis')
           .flatMap((m: any) => m.items[0].items)
           .find((m: any) => m.role === 'axis-label');
-        return labelMark.items.filter((t: any) => t.text).map((t: any) => t.datum.value);
+        return labelMark.items.map((t: any) => ({value: t.datum.value, text: t.text})) as {
+          value: number;
+          text: string;
+        }[];
       };
+      const labeledValues = (labels: Awaited<ReturnType<typeof labelTexts>>) =>
+        labels.filter((l) => l.text).map((l) => l.value);
 
-      const own = await labeled({}, {});
-      expect(own).toContain(100);
-      expect(own).not.toContain(300);
-      expect(await labeled(axis, config)).toEqual(own);
+      it.each([
+        ['axis format type', {formatType: 'customNumberFormat'}, {}],
+        ['config number format type', {}, {numberFormatType: 'customNumberFormat'}],
+      ])("labels the ticks Vega's own format labels, from the %s", async (_, axis, config) => {
+        const own = labeledValues(await labelTexts({}, {}));
+        expect(own).toContain(100);
+        expect(own).not.toContain(300);
+        expect(labeledValues(await labelTexts(axis, config))).toEqual(own);
+      });
+
+      it('composes into a labelExpr', async () => {
+        const labelExpr = "datum.label + ' u'";
+        const own = await labelTexts({labelExpr}, {});
+        const custom = await labelTexts({labelExpr, formatType: 'customNumberFormat'}, {});
+        expect(custom.map((l) => l.text)).toEqual(own.map((l) => (l.text === ' u' ? ' u' : `#${l.value} u`)));
+      });
     });
   });
 });

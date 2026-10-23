@@ -14,9 +14,10 @@ export function labels(model: UnitModel, channel: PositionScaleChannel, specifie
 
   // Vega blanks most of a log axis's tick labels, but only in datum.label; a custom
   // format reads datum.value, so it keeps that choice by labeling only what Vega did.
+  // Parenthesized, as a labelExpr substitutes it for datum.label.
   const customText = (custom: {format: typeof format; formatType: string}) => {
     const text = formatCustomType({fieldOrDatumDef, field: 'datum.value', ...custom, config});
-    return logScale ? {signal: `datum.label ? ${text.signal} : ''`} : text;
+    return logScale ? {signal: `(datum.label ? ${text.signal} : '')`} : text;
   };
 
   if (isCustomFormatType(formatType)) {
