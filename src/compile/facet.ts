@@ -52,6 +52,21 @@ function rankProperty(channel: FacetChannel) {
   return `${channel}_rank`;
 }
 
+/**
+ * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
+ * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
+ * so it would sort first and shift every later cell out from under its header. Its
+ * groupby values survive, so each cell instead takes its header's place in a scale
+ * over the header domain, sorted as the headers are.
+ */
+function rankedChannels(facet: EncodingFacetMapping<string, SignalRef>): FacetChannel[] {
+  const {row, column} = facet;
+  if (!row || !column) {
+    return [];
+  }
+  return [ROW, COLUMN].filter((channel) => isSortField(facet[channel].sort) || isArray(facet[channel].sort));
+}
+
 function legendScaleNames(legend: VgLegend): string[] {
   return LEGEND_SCALE_CHANNELS.map((prop) => legend[prop]).filter((name): name is string => !!name);
 }
@@ -188,6 +203,8 @@ export class FacetModel extends ModelWithField {
 
   private hoistedScales: VgScale[] = [];
 
+  private readonly rankedChannels: FacetChannel[];
+
   constructor(spec: NormalizedFacetSpec, parent: Model, parentGivenName: string, config: Config<SignalRef>) {
     super(spec, 'facet', parent, parentGivenName, config, spec.resolve);
 
@@ -200,6 +217,7 @@ export class FacetModel extends ModelWithField {
     };
 
     this.facet = this.initFacet(spec.facet);
+    this.rankedChannels = rankedChannels(this.facet);
   }
 
   private initFacet(
@@ -527,7 +545,7 @@ export class FacetModel extends ModelWithField {
     const fieldDef = facet[channel];
 
     if (fieldDef) {
-      if (this.rankedChannels().includes(channel)) {
+      if (this.rankedChannels.includes(channel)) {
         return [rankProperty(channel)];
       } else if (isSortField(fieldDef.sort)) {
         return [facetSortFieldName(fieldDef, fieldDef.sort, {expr: 'datum'})];
@@ -539,45 +557,31 @@ export class FacetModel extends ModelWithField {
     return [];
   }
 
-  /**
-   * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
-   * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
-   * so it would sort first and shift every later cell out from under its header. Its
-   * groupby values survive, so each cell instead takes its header's place in a scale
-   * over the header domain, sorted as the headers are.
-   */
-  private rankedChannels(): FacetChannel[] {
-    const {row, column} = this.facet;
-    if (!row || !column) {
-      return [];
-    }
-    return [ROW, COLUMN].filter(
-      (channel) => isSortField(this.facet[channel].sort) || isArray(this.facet[channel].sort),
-    );
-  }
-
+  // The domain sorts in the header's direction, so keys that tie keep the header's
+  // order, and cells sort ascending by rank.
   private assembleRankScales(): VgScale[] {
-    return this.rankedChannels().map((channel) => ({
+    return this.rankedChannels.map((channel) => ({
       name: this.getName(rankProperty(channel)),
       type: 'point',
       domain: {
         data: this.getName(`${channel}_domain`),
         field: vgField(this.facet[channel]),
-        sort: {field: rankSortKey(channel), op: 'max'},
+        sort: {field: rankSortKey(channel), op: 'max', order: this.headerSortOrder(channel)},
       },
       range: [0, 1],
     }));
   }
 
+  private headerSortOrder(channel: FacetChannel): SortOrder {
+    const {sort} = this.facet[channel];
+    return (isSortField(sort) ? sort.order : !isArray(sort) && sort) || 'ascending';
+  }
+
   private facetSortOrder(channel: FacetChannel): SortOrder[] {
-    const {facet} = this;
-    const fieldDef = facet[channel];
-    if (fieldDef) {
-      const {sort} = fieldDef;
-      const order = (isSortField(sort) ? sort.order : !isArray(sort) && sort) || 'ascending';
-      return [order];
+    if (!this.facet[channel]) {
+      return [];
     }
-    return [];
+    return [this.rankedChannels.includes(channel) ? 'ascending' : this.headerSortOrder(channel)];
   }
 
   private assembleLabelTitle() {
@@ -614,7 +618,7 @@ export class FacetModel extends ModelWithField {
 
     const encodeEntry = child.assembleGroupEncodeEntry(false);
     const rankEntry = Object.fromEntries(
-      this.rankedChannels().map((channel) => [
+      this.rankedChannels.map((channel) => [
         rankProperty(channel),
         {scale: this.getName(rankProperty(channel)), field: vgField(this.facet[channel])},
       ]),

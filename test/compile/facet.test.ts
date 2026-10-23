@@ -904,16 +904,26 @@ describe('FacetModel', () => {
       expect(marks[0].from.facet.groupby).toEqual(['bin_maxbins_6_a', 'bin_maxbins_6_a_end']);
     });
 
+    const charCode = (c: string) => c.charCodeAt(0);
     it.each([
-      ['sort fields', {field: 'o\\.rs'}, {field: 'o\\.cs', order: 'descending'}],
-      ['sort arrays', ['q', 'p'], ['c', 'b', 'a']],
+      ['sort fields, a cell empty', {field: 'o\\.rs'}, {field: 'o\\.cs', order: 'descending'}, charCode, true, 'cba'],
+      ['sort arrays, a cell empty', ['q', 'p'], ['c', 'b', 'a'], charCode, true, 'cba'],
+      // Tied keys keep the header's order, which reads the data's
+      [
+        'tied descending sort keys',
+        {field: 'o\\.rs'},
+        {field: 'o\\.cs', order: 'descending'},
+        (c: string) => +(c === 'c'),
+        false,
+        'cab',
+      ],
     ] as const)(
-      'places crossed cells under their headers when a cell is empty, with %s',
-      async (_, rowSort, colSort) => {
+      'places crossed cells under their headers, with %s',
+      async (_, rowSort, colSort, columnKey, emptyCell, columnOrder) => {
         const values = ['p', 'q'].flatMap((r) =>
           ['a', 'b', 'c']
-            .filter((c) => !(r === 'p' && c === 'b'))
-            .map((c) => ({'o.r': r, 'o.c': c, 'o.rs': r === 'q' ? 1 : 2, 'o.cs': c.charCodeAt(0), v: 1})),
+            .filter((c) => !(emptyCell && r === 'p' && c === 'b'))
+            .map((c) => ({'o.r': r, 'o.c': c, 'o.rs': r === 'q' ? 1 : 2, 'o.cs': columnKey(c), v: 1})),
         );
         const {spec} = compile({
           data: {values},
@@ -930,10 +940,7 @@ describe('FacetModel', () => {
         const group = (name: string) => marks.find((m: any) => m.name === name).items;
         const rows = group('row_header').map((h: any) => h.datum['o.r']);
         const columns = group('column_header').map((h: any) => h.datum['o.c']);
-        expect([rows, columns]).toEqual([
-          ['q', 'p'],
-          ['c', 'b', 'a'],
-        ]);
+        expect([rows, columns]).toEqual([['q', 'p'], [...columnOrder]]);
         expect(group('cell').map((g: any) => [g.datum['o.r'], g.datum['o.c']])).toEqual(
           rows.flatMap((r: string) => columns.map((c: string) => [r, c])),
         );
