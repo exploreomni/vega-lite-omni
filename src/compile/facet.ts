@@ -25,7 +25,7 @@ import {isVgRangeStep, VgData, VgLayout, VgMarkGroup, VgScale} from '../vega.sch
 import {buildModel} from './buildmodel.js';
 import {assembleFacetData} from './data/assemble.js';
 import {sortArrayIndexField} from './data/calculate.js';
-import {rankSortKey} from './data/facet.js';
+import {rankedChannels, rankSortKey} from './data/facet.js';
 import {parseData} from './data/parse.js';
 import {assembleLabelTitle} from './header/assemble.js';
 import {getHeaderChannel, getHeaderProperty} from './header/common.js';
@@ -50,21 +50,6 @@ export function facetSortFieldName(
 
 function rankProperty(channel: FacetChannel) {
   return `${channel}_rank`;
-}
-
-/**
- * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
- * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
- * so it would sort first and shift every later cell out from under its header. Its
- * groupby values survive, so each cell instead takes its header's place in a scale
- * over the header domain, sorted as the headers are.
- */
-function rankedChannels(facet: EncodingFacetMapping<string, SignalRef>): FacetChannel[] {
-  const {row, column} = facet;
-  if (!row || !column) {
-    return [];
-  }
-  return [ROW, COLUMN].filter((channel) => isSortField(facet[channel].sort) || isArray(facet[channel].sort));
 }
 
 function legendScaleNames(legend: VgLegend): string[] {

@@ -158,9 +158,9 @@ describe('compile/data/facet', () => {
           {
             type: 'aggregate',
             groupby: ['c'],
-            fields: ['column_c_sort_index', 'column_c_sort_index'],
-            ops: ['max', 'max'],
-            as: ['column_c_sort_index', 'column_rank_key'],
+            fields: ['column_c_sort_index'],
+            ops: ['max'],
+            as: ['column_rank_key'],
           },
         ],
       });
@@ -172,9 +172,9 @@ describe('compile/data/facet', () => {
           {
             type: 'aggregate',
             groupby: ['r'],
-            fields: ['row_r_sort_index', 'row_r_sort_index'],
-            ops: ['max', 'max'],
-            as: ['row_r_sort_index', 'row_rank_key'],
+            fields: ['row_r_sort_index'],
+            ops: ['max'],
+            as: ['row_rank_key'],
           },
         ],
       });
@@ -209,9 +209,9 @@ describe('compile/data/facet', () => {
           {
             type: 'aggregate',
             groupby: ['c'],
-            fields: ['a', 'a'],
-            ops: ['min', 'min'],
-            as: ['a', 'column_rank_key'],
+            fields: ['a'],
+            ops: ['min'],
+            as: ['column_rank_key'],
           },
         ],
       });
@@ -223,9 +223,9 @@ describe('compile/data/facet', () => {
           {
             type: 'aggregate',
             groupby: ['r'],
-            fields: ['b', 'b'],
-            ops: ['median', 'median'],
-            as: ['median_b', 'row_rank_key'],
+            fields: ['b'],
+            ops: ['median'],
+            as: ['row_rank_key'],
           },
         ],
       });

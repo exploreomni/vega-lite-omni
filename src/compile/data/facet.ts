@@ -1,4 +1,4 @@
-import type {AggregateOp} from 'vega';
+import type {AggregateOp, SignalRef} from 'vega';
 import {isArray} from 'vega-util';
 import {isBinning} from '../../bin.js';
 import {COLUMN, FACET_CHANNELS, FacetChannel, POSITION_SCALE_CHANNELS, ROW} from '../../channel.js';
@@ -6,6 +6,7 @@ import {vgField} from '../../channeldef.js';
 import * as log from '../../log/index.js';
 import {hasDiscreteDomain} from '../../scale.js';
 import {DEFAULT_SORT_OP, EncodingSortField, isSortField} from '../../sort.js';
+import {EncodingFacetMapping} from '../../spec/facet.js';
 import {hash} from '../../util.js';
 import {isVgRangeStep, VgData} from '../../vega.schema.js';
 import {FacetModel} from '../facet.js';
@@ -28,8 +29,28 @@ interface FacetChannelInfo {
   sortIndexField?: string;
 }
 
+/**
+ * The key a crossed facet's headers and rank scale both sort by. It has no escapes:
+ * Vega before 6.3 named a domain sort's aggregate after the escaped field reference,
+ * so a dotted name never matched.
+ */
 export function rankSortKey(channel: FacetChannel) {
   return `${channel}_rank_key`;
+}
+
+/**
+ * The channels of a crossed facet whose cells sort by rank. `cross` adds a cell for
+ * each missing (row, column) pair, and with no tuples it gets no aggregated sort key,
+ * so it would sort first and shift every later cell out from under its header. Its
+ * groupby values survive, so each cell instead takes its header's place in a scale
+ * over the header domain, sorted as the headers are.
+ */
+export function rankedChannels(facet: EncodingFacetMapping<string, SignalRef>): FacetChannel[] {
+  const {row, column} = facet;
+  if (!row || !column) {
+    return [];
+  }
+  return [ROW, COLUMN].filter((channel) => isSortField(facet[channel].sort) || isArray(facet[channel].sort));
 }
 
 /**
@@ -186,15 +207,7 @@ export class FacetNode extends DataFlowNode {
     if (sort) {
       fields.push(sort.field);
       ops.push(sort.op);
-      as.push(sort.as);
-      if (this.row && this.column) {
-        // The key a crossed facet's rank scale sorts by. A Vega domain sort names its
-        // aggregate after the field reference, escapes and all, so a dotted name never
-        // matches; this one has none.
-        fields.push(sort.field);
-        ops.push(sort.op);
-        as.push(rankSortKey(channel));
-      }
+      as.push(rankedChannels(this.model.facet).includes(channel) ? rankSortKey(channel) : sort.as);
     }
 
     return {
