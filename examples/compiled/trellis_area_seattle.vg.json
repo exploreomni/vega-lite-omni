@@ -156,7 +156,7 @@
       "data": [
         {
           "source": "facet",
-          "name": "data_0",
+          "name": "facet_data_0",
           "transform": [
             {
               "type": "aggregate",
@@ -181,7 +181,7 @@
           "type": "area",
           "style": ["area"],
           "sort": {"field": "x"},
-          "from": {"data": "data_0"},
+          "from": {"data": "facet_data_0"},
           "encode": {
             "update": {
               "orient": {"value": "vertical"},
