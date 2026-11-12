@@ -3,8 +3,9 @@ import { Config } from '../config.js';
 import { LayoutSizeMixins, NormalizedLayerSpec } from '../spec/index.js';
 import { VgData, VgLayout } from '../vega.schema.js';
 import { Model } from './model.js';
+import { UnitModel } from './unit.js';
 export declare class LayerModel extends Model {
-    readonly children: Model[];
+    readonly children: (UnitModel | LayerModel)[];
     constructor(spec: NormalizedLayerSpec, parent: Model, parentGivenName: string, parentGivenSize: LayoutSizeMixins, config: Config<SignalRef>);
     parseData(): void;
     parseLayoutSize(): void;

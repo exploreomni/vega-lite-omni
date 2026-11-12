@@ -44,7 +44,7 @@ export interface VgValueRef {
     band?: boolean | number | VgValueRef;
     test?: string;
 }
-export type VgScaleMultiDataRefWithSort = ScaleMultiDataRef & {
+export type VgScaleMultiDataRefWithSort = Omit<ScaleMultiDataRef, 'fields'> & {
     fields: (any[] | VgScaleDataRefWithSort | SignalRef)[];
     sort?: VgUnionSortField;
 };
@@ -57,6 +57,7 @@ export interface VgRangeStep {
     step: number | SignalRef;
 }
 export type VgNonUnionDomain = (null | string | number | boolean | SignalRef)[] | VgScaleDataRefWithSort | SignalRef;
+export type VgDomainsToUnion = VgNonUnionDomain[];
 export type VgDomain = BaseScale['domain'];
 export type VgMarkGroup = any;
 /**

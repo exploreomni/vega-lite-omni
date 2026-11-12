@@ -163,13 +163,13 @@ export declare abstract class Model {
     hasExplicitSize(dimension: LayoutSizeField): boolean;
 }
 /** Abstract class for UnitModel and FacetModel. Both of which can contain fieldDefs as a part of its own specification. */
-export declare abstract class ModelWithField extends Model {
+export declare abstract class ModelWithField<M extends Partial<Record<ExtendedChannel, any>> = Partial<Record<ExtendedChannel, any>>> extends Model {
     abstract fieldDef(channel: SingleDefChannel): FieldDef<any>;
     /** Get "field" reference for Vega */
     vgField(channel: SingleDefChannel, opt?: FieldRefOption): string;
-    protected abstract getMapping(): Partial<Record<ExtendedChannel, any>>;
-    reduceFieldDef<T, U>(f: (acc: U, fd: FieldDef<string>, c: Channel) => U, init: T): T;
-    forEachFieldDef(f: (fd: FieldDef<string>, c: ExtendedChannel) => void, t?: any): void;
+    protected abstract getMapping(): M;
+    reduceFieldDef<T>(f: (acc: T, fd: FieldDef<string>, c: keyof M) => T, init: T): T;
+    forEachFieldDef(f: (fd: FieldDef<string>, c: keyof M) => void, t?: any): void;
     abstract channelHasField(channel: Channel): boolean;
 }
 //# sourceMappingURL=model.d.ts.map

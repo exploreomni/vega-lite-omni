@@ -29,7 +29,7 @@ export interface Explicit<T> {
 export declare function makeExplicit<T>(value: T): Explicit<T>;
 export declare function makeImplicit<T>(value: T): Explicit<T>;
 export type SplitParentProperty = 'scale' | 'axis' | 'legend' | '';
-export declare function tieBreakByComparing<S, T>(compare: (v1: T, v2: T) => number): (v1: Explicit<T>, v2: Explicit<T>, property: keyof S | never, propertyOf: SplitParentProperty) => Explicit<T>;
+export declare function tieBreakByComparing<S, T>(compare: (v1: T, v2: T) => number): (v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: SplitParentProperty) => Explicit<T>;
 export declare function defaultTieBreaker<S, T>(v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: SplitParentProperty): Explicit<T>;
-export declare function mergeValuesWithExplicit<S, T>(v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: SplitParentProperty, tieBreaker?: (v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: string) => Explicit<T>): Explicit<T>;
+export declare function mergeValuesWithExplicit<S, T>(v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: SplitParentProperty, tieBreaker?: (v1: Explicit<T>, v2: Explicit<T>, property: keyof S, propertyOf: SplitParentProperty) => Explicit<T>): Explicit<T>;
 //# sourceMappingURL=split.d.ts.map

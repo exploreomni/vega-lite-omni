@@ -1,5 +1,7 @@
+import { mergeConfig, writeConfig } from 'vega-util';
 import { LogicalComposition } from './logical.js';
 export declare const duplicate: typeof structuredClone;
+export { mergeConfig, writeConfig };
 export declare function never(message: string): never;
 /**
  * Creates an object composed of the picked object properties.
@@ -86,7 +88,7 @@ export declare function accessPathWithDatum(path: string, datum?: string): strin
  * @param path The field name.
  * @param datum The string to use for `datum`.
  */
-export declare function flatAccessWithDatum(path: string, datum?: 'datum' | 'parent' | 'datum.datum'): string;
+export declare function flatAccessWithDatum(path: string, datum?: string): string;
 /**
  * Return access with datum to **an unescaped path**.
  *

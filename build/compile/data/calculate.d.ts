@@ -1,5 +1,5 @@
 import { FormulaTransform as VgFormulaTransform } from 'vega';
-import { SingleDefChannel } from '../../channel.js';
+import { ExtendedChannel } from '../../channel.js';
 import { FieldRefOption, TypedFieldDef } from '../../channeldef.js';
 import { CalculateTransform } from '../../transform.js';
 import { ModelWithField } from '../model.js';
@@ -15,5 +15,5 @@ export declare class CalculateNode extends DataFlowNode {
     assemble(): VgFormulaTransform;
     hash(): string;
 }
-export declare function sortArrayIndexField(fieldDef: TypedFieldDef<string>, channel: SingleDefChannel, opt?: FieldRefOption): string;
+export declare function sortArrayIndexField(fieldDef: TypedFieldDef<string>, channel: ExtendedChannel, opt?: FieldRefOption): string;
 //# sourceMappingURL=calculate.d.ts.map

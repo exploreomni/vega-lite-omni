@@ -3,7 +3,10 @@ import { AggregateTransform } from '../../transform.js';
 import { Dict } from '../../util.js';
 import { UnitModel } from '../unit.js';
 import { DataFlowNode } from './dataflow.js';
-type Measures = Dict<Partial<Record<AggregateOp, Set<string>>>>;
+type Measures = Dict<Partial<Record<AggregateOp, {
+    aliases: Set<string>;
+    aggregateParam?: number;
+}>>>;
 export declare class AggregateNode extends DataFlowNode {
     private dimensions;
     private measures;

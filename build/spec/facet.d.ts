@@ -8,7 +8,7 @@ import { StandardType } from '../type.js';
 import { BaseSpec, GenericCompositionLayoutWithColumns, LayoutSizeMixins, ResolveMixins } from './base.js';
 import { GenericLayerSpec, NormalizedLayerSpec } from './layer.js';
 import { GenericUnitSpec, NormalizedUnitSpec } from './unit.js';
-export interface FacetFieldDef<F extends Field, ES extends ExprRef | SignalRef = ExprRef | SignalRef> extends TypedFieldDef<F, StandardType, boolean | BinParams | null> {
+export interface FacetFieldDef<F extends Field, ES extends ExprRef | SignalRef = ExprRef | SignalRef> extends Omit<TypedFieldDef<F, StandardType, boolean | BinParams | null>, 'tooltip'> {
     /**
      * An object defining properties of a facet's header.
      */

@@ -1,9 +1,10 @@
-import { isObject, hasOwnProperty, splitAccessPath, stringValue, isNumber, isString, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig, identity } from 'vega-util';
+import { isObject, hasOwnProperty, splitAccessPath, stringValue, isNumber, isString, writeConfig, isBoolean as isBoolean$1, isArray, array, logger, Warn, isFunction, mergeConfig } from 'vega-util';
+export { mergeConfig, writeConfig } from 'vega-util';
 import { stringValue as stringValue$1, hasOwnProperty as hasOwnProperty$1, isObject as isObject$1, isString as isString$1, array as array$1 } from 'vega';
 import { parseSelector } from 'vega-event-selector';
 import { parseExpression as parseExpression$1 } from 'vega-expression';
 
-var version$1 = "6.4.3";
+var version$1 = "6.5.0";
 var pkg = {
 	version: version$1};
 
@@ -1100,6 +1101,24 @@ function isArgminDef(a) {
 function isArgmaxDef(a) {
     return hasProperty(a, 'argmax');
 }
+function isExponentialDef(a) {
+    return hasProperty(a, 'exponential');
+}
+function isExponentialBDef(a) {
+    return hasProperty(a, 'exponentialb');
+}
+function isParameterizedAggregateDef(a) {
+    return isExponentialDef(a) || isExponentialBDef(a);
+}
+function getAggregateOp(a) {
+    return isExponentialDef(a) ? 'exponential' : isExponentialBDef(a) ? 'exponentialb' : a;
+}
+/**
+ * Returns the parameter of a parameterized aggregate def, or `undefined` for other aggregates.
+ */
+function getAggregateParam(a) {
+    return isExponentialDef(a) ? a.exponential : isExponentialBDef(a) ? a.exponentialb : undefined;
+}
 function isAggregateOp(a) {
     return isString(a) && hasOwnProperty(AGGREGATE_OP_INDEX, a);
 }
@@ -1452,9 +1471,8 @@ function getMarkStyleConfig(prop, mark, styleConfigIndex) {
     return getStyleConfig(prop, getStyles(mark), styleConfigIndex);
 }
 function getStyleConfig(p, styles, styleConfigIndex) {
-    styles = array(styles);
     let value;
-    for (const style of styles) {
+    for (const style of array(styles)) {
         const styleConfig = styleConfigIndex[style];
         if (hasProperty(styleConfig, p)) {
             value = styleConfig[p];
@@ -1621,11 +1639,18 @@ const ADD_SAME_CHILD_TWICE = 'Attempt to add the same child twice.';
 function invalidTransformIgnored(transform) {
     return `Ignoring an invalid transform: ${stringify(transform)}.`;
 }
+function conflictingAggregateParam(op, field, parentParam, childParam) {
+    return `The "${op}" aggregate of the field "${field}" is used with different parameters (${parentParam} and ${childParam}). Using ${childParam}.`;
+}
 const NO_FIELDS_NEEDS_AS = 'If "from.fields" is not specified, "as" has to be a string that specifies the key to be used for the data from the secondary source.';
 // ENCODING & FACET
 function customFormatTypeNotAllowed(channel) {
     return `Config.customFormatTypes is not true, thus custom format type and format for channel ${channel} are dropped.`;
 }
+function invalidTooltipFilter(filter) {
+    return `Ignoring an invalid tooltip filter: ${stringify(filter)}.`;
+}
+const TOOLTIP_FILTER_REQUIRES_FIELD = 'Ignoring tooltip filter because it requires a field (argmin and argmax fields are not supported).';
 function projectionOverridden(opt) {
     const { parentProjection, projection } = opt;
     return `Layer's shared projection ${stringify(parentProjection)} is overridden by a child projection ${stringify(projection)}.`;
@@ -2065,8 +2090,8 @@ function containsTimeUnit(fullTimeUnit, timeUnit) {
 /**
  * Returns Vega expression for a given timeUnit and fieldRef
  */
-function fieldExpr(fullTimeUnit, field, { end } = { end: false }) {
-    const fieldRef = accessPathWithDatum(field);
+function fieldExpr(fullTimeUnit, field, { end = false, expr = 'datum' } = {}) {
+    const fieldRef = accessPathWithDatum(field, expr);
     const utc = isUTCTimeUnit(fullTimeUnit) ? 'utc' : '';
     function func(timeUnit) {
         if (timeUnit === 'quarter') {
@@ -2257,16 +2282,16 @@ function predicateValueExpr(v, timeUnit) {
 function predicateValuesExpr(vals, timeUnit) {
     return vals.map((v) => predicateValueExpr(v, timeUnit));
 }
-function predicateFieldExpr(predicate) {
+function predicateFieldExpr(predicate, expr = 'datum') {
     const { field } = predicate;
     const normalizedTimeUnit = normalizeTimeUnit(predicate.timeUnit);
     const { unit, binned } = normalizedTimeUnit || {};
-    const rawFieldExpr = vgField(predicate, { expr: 'datum' });
+    const rawFieldExpr = vgField(predicate, { expr });
     const fieldExpr$1 = unit
         ? // For timeUnit, cast into integer with time() so we can use ===, inrange, indexOf to compare values directly.
             // TODO: We calculate timeUnit on the fly here. Consider if we would like to consolidate this with timeUnit pipeline
             // TODO: support utc
-            `time(${!binned ? fieldExpr(unit, field) : rawFieldExpr})`
+            `time(${!binned ? fieldExpr(unit, field, { expr }) : rawFieldExpr})`
         : rawFieldExpr;
     return { fieldExpr: fieldExpr$1, unit };
 }
@@ -2274,9 +2299,9 @@ function fieldIndexOfExpression(predicate, values) {
     const { fieldExpr, unit } = predicateFieldExpr(predicate);
     return `indexof([${predicateValuesExpr(values, unit).join(',')}], ${fieldExpr})`;
 }
-// This method is used by Voyager. Do not change its behavior without changing Voyager.
-function fieldFilterExpression(predicate, useInRange = true) {
-    const { fieldExpr, unit } = predicateFieldExpr(predicate);
+// This method is used by Voyager. Do not change its default behavior without changing Voyager.
+function fieldFilterExpression(predicate, useInRange = true, expr = 'datum') {
+    const { fieldExpr, unit } = predicateFieldExpr(predicate, expr);
     if (isFieldEqualPredicate(predicate)) {
         return `${fieldExpr}===${predicateValueExpr(predicate.equal, unit)}`;
     }
@@ -2349,9 +2374,22 @@ const Type = {
     nominal: 'nominal',
     geojson: 'geojson',
 };
+/**
+ * Type-only continuous check (does not consider binning).
+ * A binned quantitative field still counts as continuous here, whereas the
+ * field-aware `isDiscrete` in `./channeldef.js` treats it as discrete.
+ */
 function isContinuous(type) {
     return type === 'quantitative' || type === 'temporal';
 }
+/**
+ * Type-only discrete check (does not consider binning).
+ * For a field-aware version that treats binned quantitative fields as discrete,
+ * use `isDiscrete` from `./channeldef.js`.
+ * Note: `tooltipRefForEncoding` relies on this type-only check so that binned
+ * quantitative fields keep the bin-range tooltip format instead of the
+ * discrete format.
+ */
 function isDiscrete$1(type) {
     return type === 'ordinal' || type === 'nominal';
 }
@@ -2755,11 +2793,24 @@ const TRAIL = Mark.trail;
 const CIRCLE = Mark.circle;
 const SQUARE = Mark.square;
 const GEOSHAPE = Mark.geoshape;
+const PATH_MARKS = ['line', 'area', 'trail'];
+const PATH_MARK_SET = new Set(PATH_MARKS);
 function isPathMark(m) {
-    return ['line', 'area', 'trail'].includes(m);
+    return PATH_MARK_SET.has(m);
 }
+/* arc is rect/interval in polar coordinate */
+const RECT_BASED_MARKS = ['rect', 'bar', 'image', 'arc', 'tick'];
+const RECT_BASED_MARK_SET = new Set(RECT_BASED_MARKS);
 function isRectBasedMark(m) {
-    return ['rect', 'bar', 'image', 'arc', 'tick' /* arc is rect/interval in polar coordinate */].includes(m);
+    return RECT_BASED_MARK_SET.has(m);
+}
+/**
+ * Marks that span from a baseline to a value (e.g., for zero baselines and stacking).
+ */
+const BAR_AREA_MARKS = ['bar', 'area'];
+const BAR_AREA_MARK_SET = new Set(BAR_AREA_MARKS);
+function isBarOrArea(m) {
+    return BAR_AREA_MARK_SET.has(m);
 }
 const PRIMITIVE_MARKS = new Set(keys(Mark));
 function isMarkDef(mark) {
@@ -2826,10 +2877,6 @@ const MARK_CONFIGS = keys(MARK_CONFIG_INDEX);
 function isRelativeBandSize(o) {
     return hasProperty(o, 'band');
 }
-const BAR_CORNER_RADIUS_INDEX = {
-    horizontal: ['cornerRadiusTopRight', 'cornerRadiusBottomRight'],
-    vertical: ['cornerRadiusTopLeft', 'cornerRadiusTopRight'],
-};
 const DEFAULT_RECT_BAND_SIZE = 5;
 const defaultRectConfig = {
     binSpacing: 0,
@@ -3250,6 +3297,7 @@ function guideFormat(fieldOrDatumDef, type, format, formatType, config, omitTime
         config.normalizedNumberFormat) {
         return numberFormat({
             type: 'quantitative',
+            specifiedFormat: format,
             config,
             normalizeStack: true,
         });
@@ -3540,7 +3588,7 @@ function vgField(fieldDef, opt = {}) {
         let fn;
         if (!opt.nofn) {
             if (isOpFieldDef(fieldDef)) {
-                fn = fieldDef.op;
+                fn = getAggregateOp(fieldDef.op);
             }
             else {
                 const { bin, aggregate, timeUnit } = fieldDef;
@@ -3558,7 +3606,7 @@ function vgField(fieldDef, opt = {}) {
                         field = `argmin_${aggregate.argmin}`;
                     }
                     else {
-                        fn = String(aggregate);
+                        fn = getAggregateOp(aggregate);
                     }
                 }
                 else if (timeUnit && !isBinnedTimeUnit(timeUnit)) {
@@ -3630,7 +3678,7 @@ function verbalTitleFormatter(fieldDef, config) {
             return `${field} for min ${aggregate.argmin}`;
         }
         else {
-            return `${titleCase(aggregate)} of ${field}`;
+            return `${titleCase(getAggregateOp(aggregate))} of ${field}`;
         }
     }
     return field;
@@ -3644,7 +3692,10 @@ function functionalTitleFormatter(fieldDef) {
         return `${field} for argmin(${aggregate.argmin})`;
     }
     const timeUnitParams = timeUnit && !isBinnedTimeUnit(timeUnit) ? normalizeTimeUnit(timeUnit) : undefined;
-    const fn = aggregate || timeUnitParams?.unit || (timeUnitParams?.maxbins && 'timeunit') || (isBinning(bin) && 'bin');
+    const fn = getAggregateOp(aggregate) ||
+        timeUnitParams?.unit ||
+        (timeUnitParams?.maxbins && 'timeunit') ||
+        (isBinning(bin) && 'bin');
     return fn ? `${fn.toUpperCase()}(${field})` : field;
 }
 const defaultTitleFormatter = (fieldDef, config) => {
@@ -3825,7 +3876,12 @@ function initFieldDef(fd, channel, { compositeMark = false } = {}) {
     const { aggregate, timeUnit, bin, field } = fd;
     const fieldDef = { ...fd };
     // Drop invalid aggregate
-    if (!compositeMark && aggregate && !isAggregateOp(aggregate) && !isArgmaxDef(aggregate) && !isArgminDef(aggregate)) {
+    if (!compositeMark &&
+        aggregate &&
+        !isAggregateOp(aggregate) &&
+        !isArgmaxDef(aggregate) &&
+        !isArgminDef(aggregate) &&
+        !isParameterizedAggregateDef(aggregate)) {
         warn(invalidAggregate(aggregate));
         delete fieldDef.aggregate;
     }
@@ -4419,6 +4475,16 @@ function channelHasNestedOffsetScale(encoding, channel) {
     }
     return false;
 }
+/**
+ * Returns true if the given position channel has a quantitative offset channel (e.g., `xOffset` for `x`) that can drive ranged marks.
+ */
+function channelHasQuantitativeOffset(encoding, channel) {
+    const offsetChannel = getOffsetScaleChannel(channel);
+    if (!offsetChannel) {
+        return false;
+    }
+    return isUnbinnedQuantitativeFieldOrDatumDef(encoding[offsetChannel]);
+}
 function isAggregate$1(encoding) {
     return some(CHANNELS, (channel) => {
         if (channelHasField(encoding, channel)) {
@@ -4468,6 +4534,9 @@ function extractTransformsFromEncoding(oldEncoding, config) {
                         op = 'argmin';
                         newField = vgField({ op: 'argmin', field: aggOp.argmin }, { forAs: true });
                         newFieldDef.field = `${vgField({ op: 'argmin', field: aggOp.argmin })}.${field}`;
+                    }
+                    else if (isParameterizedAggregateDef(aggOp)) {
+                        op = aggOp;
                     }
                     else if (aggOp !== 'boxplot' && aggOp !== 'errorbar' && aggOp !== 'errorband') {
                         op = aggOp;
@@ -6495,7 +6564,7 @@ function isUnbinnedQuantitative(channelDef) {
 }
 function potentialStackedChannel(encoding, x, { orient, type: mark }) {
     const y = x === 'x' ? 'y' : 'radius';
-    const isCartesianBarOrArea = x === 'x' && ['bar', 'area'].includes(mark);
+    const isCartesianBarOrArea = x === 'x' && isBarOrArea(mark);
     const xDef = encoding[x];
     const yDef = encoding[y];
     if (isFieldDef(xDef) && isFieldDef(yDef)) {
@@ -6571,6 +6640,11 @@ function stack(m, encoding) {
     }
     const stackedFieldDef = encoding[fieldChannel];
     const stackedField = isFieldDef(stackedFieldDef) ? vgField(stackedFieldDef, {}) : undefined;
+    if (stackedFieldDef.stack === undefined &&
+        ((fieldChannel === 'x' && !encoding.y && channelHasQuantitativeOffset(encoding, 'y')) ||
+            (fieldChannel === 'y' && !encoding.x && channelHasQuantitativeOffset(encoding, 'x')))) {
+        return null;
+    }
     const dimensionChannel = getDimensionChannel(fieldChannel);
     const groupbyChannels = [];
     const groupbyFields = new Set();
@@ -6672,20 +6746,6 @@ function initMarkdef(originalMarkDef, encoding, config) {
     if (specifiedOrient !== undefined && specifiedOrient !== markDef.orient) {
         warn(orientOverridden(markDef.orient, specifiedOrient));
     }
-    if (markDef.type === 'bar' && markDef.orient) {
-        const cornerRadiusEnd = getMarkPropOrConfig('cornerRadiusEnd', markDef, config);
-        if (cornerRadiusEnd !== undefined) {
-            const newProps = (markDef.orient === 'horizontal' && encoding.x2) || (markDef.orient === 'vertical' && encoding.y2)
-                ? ['cornerRadius']
-                : BAR_CORNER_RADIUS_INDEX[markDef.orient];
-            for (const newProp of newProps) {
-                markDef[newProp] = cornerRadiusEnd;
-            }
-            if (markDef.cornerRadiusEnd !== undefined) {
-                delete markDef.cornerRadiusEnd; // no need to keep the original cap cornerRadius
-            }
-        }
-    }
     // set opacity and filled if not specified in mark config
     const specifiedOpacity = getMarkPropOrConfig('opacity', markDef, config);
     const specifiedFillOpacity = getMarkPropOrConfig('fillOpacity', markDef, config);
@@ -6732,9 +6792,17 @@ function orient(mark, encoding, specifiedOrient) {
             return undefined;
     }
     const { x, y, x2, y2 } = encoding;
+    const xOffsetIsMeasure = channelHasQuantitativeOffset(encoding, 'x');
+    const yOffsetIsMeasure = channelHasQuantitativeOffset(encoding, 'y');
     switch (mark) {
         case TEXT:
         case BAR:
+            if (!y && yOffsetIsMeasure) {
+                return specifiedOrient ?? 'vertical';
+            }
+            if (!x && xOffsetIsMeasure) {
+                return specifiedOrient ?? 'horizontal';
+            }
             if (isFieldDef(x) && (isBinned(x.bin) || (isFieldDef(y) && y.aggregate && !x.aggregate))) {
                 return 'vertical';
             }
@@ -6774,6 +6842,12 @@ function orient(mark, encoding, specifiedOrient) {
             }
         // falls through
         case AREA:
+            if (!y && yOffsetIsMeasure) {
+                return specifiedOrient ?? 'vertical';
+            }
+            if (!x && xOffsetIsMeasure) {
+                return specifiedOrient ?? 'horizontal';
+            }
             // If there are range for both x and y, y (vertical) has higher precedence.
             if (y2) {
                 if (isFieldDef(y) && isBinned(y.bin)) {
@@ -7665,7 +7739,7 @@ class TopLevelSelectionsNormalizer extends SpecMapper {
 for (const method of ['mapFacet', 'mapRepeat', 'mapHConcat', 'mapVConcat', 'mapLayer']) {
     const proto = TopLevelSelectionsNormalizer.prototype[method];
     TopLevelSelectionsNormalizer.prototype[method] = function (spec, params) {
-        return proto.call(this, spec, addSpecNameToParams(spec, params));
+        return Reflect.apply(proto, this, [spec, addSpecNameToParams(spec, params)]);
     };
 }
 function addSpecNameToParams(spec, params) {
@@ -8547,14 +8621,14 @@ const legendBindings = {
         if (isObject$1(selDef.select) && (selDef.select.on || selDef.select.clear)) {
             const legendFilter = 'event.item && indexof(event.item.mark.role, "legend") < 0';
             for (const evt of selCmpt.events) {
-                evt.filter = array(evt.filter ?? []);
-                if (!evt.filter.includes(legendFilter)) {
-                    evt.filter.push(legendFilter);
+                const filters = array(evt.filter ?? []);
+                if (!filters.includes(legendFilter)) {
+                    evt.filter = [...filters, legendFilter];
                 }
             }
         }
         const evt = isLegendStreamBinding(selCmpt.bind) ? selCmpt.bind.legend : 'click';
-        const stream = isString(evt) ? parseSelector(evt, 'view') : array(evt);
+        const stream = isString(evt) ? parseSelector(evt, 'view') : [...array(evt)];
         selCmpt.bind = { legend: { merge: stream } };
     },
     topLevelSignals: (model, selCmpt, signals) => {
@@ -8712,7 +8786,7 @@ const point$1 = {
         const test = `datum && item().mark.marktype !== 'group' && indexof(item().mark.role, 'legend') < 0${brushes ? ` && ${brushes}` : ''}`;
         let update = `unit: ${unitName(model)}, `;
         if (selCmpt.project.hasSelectionId) {
-            update += `${SELECTION_ID}: ${datum}[${stringValue(SELECTION_ID)}]`;
+            update += `${SELECTION_ID}: ${flatAccessWithDatum(SELECTION_ID, datum)}`;
         }
         else if (isTimerSelection(selCmpt)) {
             update += `fields: ${fieldsSg}, values: [${ANIM_VALUE} ? ${ANIM_VALUE} : ${MIN_EXTENT}]`;
@@ -8723,9 +8797,9 @@ const point$1 = {
                 const fieldDef = model.fieldDef(p.channel);
                 // Binned fields should capture extents, for a range test against the raw field.
                 return fieldDef?.bin
-                    ? `[${datum}[${stringValue(model.vgField(p.channel, {}))}], ` +
-                        `${datum}[${stringValue(model.vgField(p.channel, { binSuffix: 'end' }))}]]`
-                    : `${datum}[${stringValue(p.field)}]`;
+                    ? `[${flatAccessWithDatum(model.vgField(p.channel, {}), datum)}, ` +
+                        `${flatAccessWithDatum(model.vgField(p.channel, { binSuffix: 'end' }), datum)}]`
+                    : flatAccessWithDatum(p.field, datum);
             })
                 .join(', ');
             update += `fields: ${fieldsSg}, values: [${values}]`;
@@ -8734,14 +8808,14 @@ const point$1 = {
             // timer event: selection is for animation
             return signals.concat(animationSignals(selCmpt.name, model.scaleName(TIME)), [
                 {
+                    // An `update` expression rather than an `on` handler: unlike a
+                    // direct-manipulation selection, an animation always has a current
+                    // frame, including before any event has fired. Event handlers do not
+                    // run during the initial pulse, so an `on` handler here leaves the
+                    // selection store empty for the first render -- the frame filter
+                    // matches nothing until the first timer tick lands.
                     name: name + TUPLE,
-                    on: [
-                        {
-                            events: [{ signal: EASED_ANIM_CLOCK }, { signal: ANIM_VALUE }],
-                            update: `{${update}}`,
-                            force: true,
-                        },
-                    ],
+                    update: `{${update}}`,
                 },
             ]);
         }
@@ -8770,7 +8844,7 @@ function assembleProjection(proj) {
     rest.field = replacePathInField(rest.field);
     return rest;
 }
-function assembleInit(init, isExpr = true, wrap = identity) {
+function assembleInit(init, isExpr = true, wrap = (x) => x) {
     if (isArray(init)) {
         const assembled = init.map((v) => assembleInit(v, isExpr, wrap));
         return isExpr ? `[${assembled.join(', ')}]` : assembled;
@@ -8811,15 +8885,13 @@ function assembleSelectionSignals(model, selCmpt, signals) {
         if (c.modifyExpr)
             modifyExpr = c.modifyExpr(model, selCmpt, modifyExpr);
     }
-    signals.push({
-        name: name + MODIFY,
-        on: [
-            {
-                events: { signal: selCmpt.name + TUPLE },
-                update: `modify(${stringValue(selCmpt.name + STORE)}, ${modifyExpr})`,
-            },
-        ],
-    });
+    const modify = `modify(${stringValue(selCmpt.name + STORE)}, ${modifyExpr})`;
+    signals.push(isTimerSelection(selCmpt)
+        ? // an animation's tuple signal is itself an `update` expression, so
+            // write the store on the initial pulse too -- otherwise the first
+            // frame renders against an empty store. see point.ts.
+            { name: name + MODIFY, update: modify }
+        : { name: name + MODIFY, on: [{ events: { signal: selCmpt.name + TUPLE }, update: modify }] });
     return signals;
 }
 function assembleUnitSelectionSignals(model, signals) {
@@ -9060,9 +9132,10 @@ const interval = {
                     warn(`${evt} is not an ordered event stream for interval selections.`);
                     continue;
                 }
-                const filters = array((evt.between[0].filter ??= []));
+                const between = evt.between[0];
+                const filters = array(between.filter ?? []);
                 if (!filters.includes(filterExpr)) {
-                    filters.push(filterExpr);
+                    between.filter = [...filters, filterExpr];
                 }
             }
         }
@@ -9443,7 +9516,7 @@ function tooltip(model, opt = {}) {
         });
     }
 }
-function tooltipData(encoding, stack, config, { reactiveGeom } = {}) {
+function tooltipDataTuples(encoding, stack, config, { reactiveGeom } = {}) {
     const formatConfig = { ...config, ...config.tooltipFormat };
     const toSkip = new Set();
     const expr = reactiveGeom ? 'datum.datum' : 'datum';
@@ -9470,6 +9543,10 @@ function tooltipData(encoding, stack, config, { reactiveGeom } = {}) {
                 toSkip.add(channel2);
             }
         }
+        if (fieldDef.tooltip === false) {
+            return;
+        }
+        const test = tooltipFilterExpression(fieldDef, channel, expr);
         if ((isXorY(channel) || channel === THETA || channel === RADIUS) &&
             stack &&
             stack.fieldChannel === channel &&
@@ -9485,7 +9562,7 @@ function tooltipData(encoding, stack, config, { reactiveGeom } = {}) {
             }).signal;
         }
         value ??= addLineBreaksToTooltip(fieldDef, formatConfig, expr).signal;
-        tuples.push({ channel, key, value });
+        tuples.push({ channel, key, value, test });
     }
     forEach(encoding, (channelDef, channel) => {
         if (isFieldDef(channelDef)) {
@@ -9495,18 +9572,71 @@ function tooltipData(encoding, stack, config, { reactiveGeom } = {}) {
             add(channelDef.condition, channel);
         }
     });
-    const out = {};
-    for (const { channel, key, value } of tuples) {
-        if (!toSkip.has(channel) && !out[key]) {
-            out[key] = value;
+    const out = [];
+    const keys = new Set();
+    for (const { channel, key, value, test } of tuples) {
+        if (!toSkip.has(channel) && !keys.has(key)) {
+            out.push({ channel, key, value, test });
+            keys.add(key);
         }
     }
     return out;
 }
+// Converts a tooltip filter for the given field into a Vega expression, undefined when absent or invalid.
+function tooltipFilterExpression(fieldDef, channel, expr) {
+    if (channel !== TOOLTIP || !hasProperty(fieldDef, 'filter')) {
+        return undefined;
+    }
+    const { filter } = fieldDef;
+    if (isArgminDef(fieldDef.aggregate) || isArgmaxDef(fieldDef.aggregate) || (!fieldDef.field && !isCount(fieldDef))) {
+        warn(TOOLTIP_FILTER_REQUIRES_FIELD);
+        return undefined;
+    }
+    // The predicates test the mark's datum, where aggregate, bin, and time unit are already applied
+    // (the raw field may not even exist after aggregation), so resolve the datum field upfront and
+    // mark time units as binned so they are not recomputed from the raw field.
+    const timeUnit = normalizeTimeUnit(fieldDef.timeUnit);
+    const boundFieldDef = { field: vgField(fieldDef), ...(timeUnit ? { timeUnit: { ...timeUnit, binned: true } } : {}) };
+    let valid = true;
+    let leafCount = 0;
+    const test = logicalExpr(filter, (predicate) => {
+        leafCount++;
+        if (isObject(predicate)) {
+            const fieldPredicate = { ...predicate, ...boundFieldDef };
+            if (isFieldPredicate(fieldPredicate) || isFieldValidPredicate(fieldPredicate)) {
+                return fieldFilterExpression(fieldPredicate, true, expr);
+            }
+        }
+        valid = false;
+        return '';
+    });
+    if (valid && leafCount > 0) {
+        return test;
+    }
+    warn(invalidTooltipFilter(filter));
+    return undefined;
+}
 function tooltipRefForEncoding(encoding, stack, config, { reactiveGeom } = {}) {
-    const data = tooltipData(encoding, stack, config, { reactiveGeom });
-    const keyValues = entries$1(data).map(([key, value]) => `"${key}": ${value}`);
-    return keyValues.length > 0 ? { signal: `{${keyValues.join(', ')}}` } : undefined;
+    const tuples = tooltipDataTuples(encoding, stack, config, { reactiveGeom });
+    if (tuples.length === 0) {
+        return undefined;
+    }
+    const objectExpr = ({ key, value }) => `{"${key}": ${value}}`;
+    if (tuples.some(({ test }) => !!test)) {
+        if (tuples.length === 1) {
+            return { signal: `(${tuples[0].test}) ? ${objectExpr(tuples[0])} : null` };
+        }
+        const keyValues = tuples.map((tuple) => tuple.test ? `(${tuple.test}) ? ${objectExpr(tuple)} : {}` : objectExpr(tuple));
+        const value = `merge(${keyValues.join(', ')})`;
+        if (tuples.every(({ test }) => !!test)) {
+            // With all fields filtered, return null instead of an empty object so that no tooltip is shown.
+            const anyVisible = tuples.map(({ test }) => `(${test})`).join(' || ');
+            return { signal: `(${anyVisible}) ? ${value} : null` };
+        }
+        return { signal: value };
+    }
+    const keyValues = tuples.map(({ key, value }) => `"${key}": ${value}`);
+    return { signal: `{${keyValues.join(', ')}}` };
 }
 /**
  * Transforms a tooltip value that is an array to a string with line breaks
@@ -9573,19 +9703,31 @@ function description(model) {
     if (config.aria === false) {
         return {};
     }
-    const data = tooltipData(encoding, stack, config);
-    if (isEmpty(data)) {
+    const data = tooltipDataTuples(encoding, stack, config)
+        // remove internal/private signals from aria description
+        .filter(({ key }) => !key.startsWith('_'));
+    if (data.length === 0) {
         return undefined;
     }
     return {
         description: {
-            signal: entries$1(data)
-                .filter(([key]) => !key.startsWith('_')) // remove internal/private signals from aria description
-                .map(([key, value]) => [key, value.replaceAll('\\n', ' ')]) // replace newlines with spaces in aria description
-                .map(([key, value], index) => `"${index > 0 ? '; ' : ''}${key}: " + (${value})`)
-                .join(' + '),
+            signal: ariaDescription(data),
         },
     };
+}
+function ariaDescription(data) {
+    // replace newlines with spaces in aria description
+    const entries = data.map(({ key, value, test }) => ({ key, value: value.replaceAll('\\n', ' '), test }));
+    if (entries.every(({ test }) => !test)) {
+        return entries.map(({ key, value }, index) => `"${index > 0 ? '; ' : ''}${key}: " + (${value})`).join(' + ');
+    }
+    // Prefix every field with a separator and strip the leading separator so that
+    // separators only appear between fields that pass their tests.
+    const segments = entries.map(({ key, value, test }) => {
+        const segment = `"; ${key}: " + (${value})`;
+        return test ? `((${test}) ? ${segment} : "")` : segment;
+    });
+    return `slice(${segments.join(' + ')}, 2)`;
 }
 
 /**
@@ -9959,15 +10101,22 @@ function pointPosition2OrSize(model, defaultPos, channel) {
             [sizeChannel]: getMarkStyleConfig(sizeChannel, markDef, config.style),
         }) ||
         position2orSize(channel, config[mark]) ||
-        position2orSize(channel, config.mark) || {
-        [vgChannel]: pointPositionDefaultRef({
-            model,
-            defaultPos,
-            channel,
-            scaleName,
-            scale,
-        })(),
-    });
+        position2orSize(channel, config.mark) ||
+        (isFieldOrDatumDef(channelDef) && model.isRangedOffset(baseChannel)
+            ? {
+                [vgChannel]: valueRefForFieldOrDatumDef(channelDef, scaleName, {}, {
+                    offset: valueRefForFieldOrDatumDef({ datum: 0 }, model.scaleName(getOffsetScaleChannel(baseChannel)), {}, {}),
+                }),
+            }
+            : {
+                [vgChannel]: pointPositionDefaultRef({
+                    model,
+                    defaultPos,
+                    channel,
+                    scaleName,
+                    scale,
+                })(),
+            }));
 }
 function position2Ref({ channel, channelDef, channel2Def, markDef, config, scaleName, scale, stack, offset, defaultRef, }) {
     if (isFieldOrDatumDef(channelDef) &&
@@ -10025,6 +10174,7 @@ function rectPosition(model, channel) {
     const offsetScaleChannel = getOffsetChannel(channel);
     const isBarOrTickBand = (mark === 'bar' && (channel === 'x' ? orient === 'vertical' : orient === 'horizontal')) ||
         (mark === 'tick' && (channel === 'y' ? orient === 'vertical' : orient === 'horizontal'));
+    const isImage = mark === 'image';
     // x, x2, and width -- we must specify two of these in all conditions
     if (isFieldDef(channelDef) &&
         (isBinning(channelDef.bin) || isBinned(channelDef.bin) || (channelDef.timeUnit && !channelDef2)) &&
@@ -10037,6 +10187,20 @@ function rectPosition(model, channel) {
             channel,
             model,
         });
+    }
+    else if (isFieldOrDatumDef(channelDef) && model.isRangedOffset(channel)) {
+        return rangePosition(channel, model, { defaultPos: 'zeroOrMax', defaultPos2: 'zeroOrMin' });
+    }
+    else if (isImage && channelDef && !hasSizeDef && !channelDef2) {
+        // Images without an explicit size use their natural dimensions, which Vega only knows at render time.
+        // Thus, we cannot use xc/yc and instead output a point position with the image mark's own
+        // align/baseline property, which Vega applies based on the rendered dimensions.
+        const alignChannel = channel === 'x' ? 'align' : 'baseline';
+        const align = getMarkPropOrConfig(alignChannel, markDef, config) ?? (channel === 'x' ? 'center' : 'middle');
+        return {
+            ...pointPosition(channel, model, { defaultPos: 'mid' }),
+            [alignChannel]: signalOrValueRef(align),
+        };
     }
     else if (((isFieldOrDatumDef(channelDef) && hasDiscreteDomain(scaleType)) || isBarOrTickBand) && !channelDef2) {
         return positionAndSize(channelDef, channel, model);
@@ -10344,11 +10508,155 @@ function colorRef(channel, valueRef) {
 }
 function markDefProperties(mark, ignore) {
     return VG_MARK_CONFIGS.reduce((m, prop) => {
-        if (!ALWAYS_IGNORE.has(prop) && hasProperty(mark, prop) && ignore[prop] !== 'ignore') {
+        if (!ALWAYS_IGNORE.has(prop) &&
+            hasProperty(mark, prop) &&
+            ignore[prop] !== 'ignore' &&
+            // `tooltip: true` and `tooltip: {content: ...}` request generated tooltips, which tooltip() compiles; they are not Vega values.
+            !(prop === 'tooltip' && (mark.tooltip === true || hasProperty(mark.tooltip, 'content')))) {
             m[prop] = signalOrValueRef(mark[prop]);
         }
         return m;
     }, {});
+}
+
+function cornerRadiusEnd(model, encodeEntry) {
+    const { markDef, config, encoding } = model;
+    const radius = getMarkPropOrConfig('cornerRadiusEnd', markDef, config);
+    if (markDef.type !== 'bar' || radius === undefined || !markDef.orient) {
+        return {};
+    }
+    // Check the original encoding because non-ranged bars also compile to x/x2 or y/y2 endpoints.
+    const isRanged = markDef.orient === 'horizontal' ? encoding.x2 : encoding.y2;
+    if (isRanged) {
+        // Both ends of a ranged bar cap a value, so round every corner —
+        // unless a mark-level cornerRadius beats a config-level cornerRadiusEnd.
+        if (markDef.cornerRadiusEnd === undefined && markDef.cornerRadius !== undefined) {
+            return {};
+        }
+        return { cornerRadius: signalOrValueRef(radius) };
+    }
+    // Compare rendered positions so negative values and reversed scales round the correct end.
+    if (markDef.orient === 'horizontal') {
+        const x = positionRefToExpr(encodeEntry.x);
+        const x2 = positionRefToExpr(encodeEntry.x2);
+        return x && x2 ? horizontalCornerRadius(model, radius, `${x} > ${x2}`, `${x} < ${x2}`) : {};
+    }
+    else {
+        const y = positionRefToExpr(encodeEntry.y);
+        const y2 = positionRefToExpr(encodeEntry.y2);
+        // Vega's y coordinates increase downward, so the top end has the smaller position.
+        return y && y2 ? verticalCornerRadius(model, radius, `${y} < ${y2}`, `${y} > ${y2}`) : {};
+    }
+}
+function cornerRadiusEndForStackedBar(model, radius, scaleName, fields) {
+    if (radius === undefined) {
+        return {};
+    }
+    // Rounded stacks use generated min/max fields for the outer negative and positive boundaries.
+    const minStart = scaledFieldExpr(scaleName, fields.minStart);
+    const maxStart = scaledFieldExpr(scaleName, fields.maxStart);
+    const minEnd = scaledFieldExpr(scaleName, fields.minEnd);
+    const maxEnd = scaledFieldExpr(scaleName, fields.maxEnd);
+    if (model.stack.fieldChannel === 'x') {
+        return horizontalCornerRadius(model, radius, `${maxEnd} > ${maxStart}`, `${minEnd} < ${minStart}`);
+    }
+    else {
+        return verticalCornerRadius(model, radius, `${maxEnd} < ${maxStart}`, `${minEnd} > ${minStart}`);
+    }
+}
+function horizontalCornerRadius(model, radius, rightEndTest, leftEndTest) {
+    return {
+        ...conditionalCornerRadius(model, ['cornerRadiusTopRight', 'cornerRadiusBottomRight'], rightEndTest, radius),
+        ...conditionalCornerRadius(model, ['cornerRadiusTopLeft', 'cornerRadiusBottomLeft'], leftEndTest, radius),
+    };
+}
+function verticalCornerRadius(model, radius, topEndTest, bottomEndTest) {
+    return {
+        ...conditionalCornerRadius(model, ['cornerRadiusTopLeft', 'cornerRadiusTopRight'], topEndTest, radius),
+        ...conditionalCornerRadius(model, ['cornerRadiusBottomLeft', 'cornerRadiusBottomRight'], bottomEndTest, radius),
+    };
+}
+function conditionalCornerRadius(model, corners, test, radius) {
+    const { markDef, config } = model;
+    const valueRef = signalOrValueRef(radius);
+    // Mark properties beat config properties, so a config-level cornerRadiusEnd
+    // must not override corner radii from the mark definition.
+    const specifiedEnd = markDef.cornerRadiusEnd !== undefined;
+    return corners.reduce((encode, corner) => {
+        if (!specifiedEnd && (markDef[corner] !== undefined || markDef.cornerRadius !== undefined)) {
+            return encode;
+        }
+        // At the non-value end, fall back to the corner's own radius so cornerRadiusEnd only overrides the value end.
+        const fallback = getMarkPropOrConfig(corner, markDef, config) ?? getMarkPropOrConfig('cornerRadius', markDef, config) ?? 0;
+        encode[corner] = [{ test, ...valueRef }, signalOrValueRef(fallback)];
+        return encode;
+    }, {});
+}
+function positionRefToExpr(ref) {
+    if (Array.isArray(ref)) {
+        // Conditional position encodings keep their unconditional fallback last.
+        ref = ref[ref.length - 1];
+    }
+    return ref ? valueRefToExpr(ref) : undefined;
+}
+function valueRefToExpr(ref) {
+    let expr;
+    if (ref.scale) {
+        const scaledValue = scaledValueRefToExpr(ref);
+        if (scaledValue === undefined) {
+            return undefined;
+        }
+        expr = `scale(${stringValue(ref.scale)}, ${scaledValue})`;
+    }
+    else if (ref.signal) {
+        expr = `(${ref.signal})`;
+    }
+    else if (ref.field !== undefined) {
+        expr = fieldRefToExpr(ref.field);
+    }
+    else if (ref.value !== undefined) {
+        expr = stringValue(ref.value);
+    }
+    if (expr === undefined) {
+        return undefined;
+    }
+    if (ref.mult !== undefined) {
+        expr = `${ref.mult} * (${expr})`;
+    }
+    if (ref.offset !== undefined) {
+        const offset = typeof ref.offset === 'number' ? stringValue(ref.offset) : valueRefToExpr(ref.offset);
+        if (offset) {
+            expr = `${expr} + ${offset}`;
+        }
+    }
+    return expr;
+}
+function scaledValueRefToExpr(ref) {
+    if (ref.signal) {
+        return ref.signal;
+    }
+    else if (ref.field !== undefined) {
+        return fieldRefToExpr(ref.field);
+    }
+    else if (ref.value !== undefined) {
+        return stringValue(ref.value);
+    }
+    return undefined;
+}
+function fieldRefToExpr(field) {
+    if (typeof field === 'string') {
+        return flatAccessWithDatum(field);
+    }
+    else if (field.datum) {
+        return flatAccessWithDatum(field.datum, 'datum');
+    }
+    else if (field.parent) {
+        return flatAccessWithDatum(field.parent, 'parent');
+    }
+    return undefined;
+}
+function scaledFieldExpr(scaleName, field) {
+    return `scale(${stringValue(scaleName)}, ${flatAccessWithDatum(field)})`;
 }
 
 /**
@@ -10482,7 +10790,7 @@ const inputBindings = {
                         ? [
                             {
                                 events: selCmpt.events,
-                                update: `datum && item().mark.marktype !== 'group' ? ${datum}[${stringValue(p.field)}] : null`,
+                                update: `datum && item().mark.marktype !== 'group' ? ${flatAccessWithDatum(p.field, datum)} : null`,
                             },
                         ]
                         : [],
@@ -11219,7 +11527,7 @@ function getAxisConfigs(channel, scaleType, orient, config) {
     };
 }
 function getAxisConfigStyle(axisConfigTypes, config) {
-    const toMerge = [{}];
+    const toMerge = [];
     for (const configType of axisConfigTypes) {
         // TODO: add special casing to add conditional value based on orient signal
         let style = config[configType]?.style;
@@ -11230,7 +11538,7 @@ function getAxisConfigStyle(axisConfigTypes, config) {
             }
         }
     }
-    return Object.assign.apply(null, toMerge);
+    return Object.assign({}, ...toMerge);
 }
 function getAxisConfig(property, styleConfigIndex, style, axisConfigs = {}) {
     const styleConfig = getStyleConfig(property, style, styleConfigIndex);
@@ -11260,6 +11568,7 @@ const axisRules = {
     labelFlush: ({ axis, fieldOrDatumDef, channel }) => axis.labelFlush ?? defaultLabelFlush(fieldOrDatumDef.type, channel),
     labelOverlap: ({ axis, fieldOrDatumDef, scaleType }) => axis.labelOverlap ??
         defaultLabelOverlap$1(fieldOrDatumDef.type, scaleType, isFieldDef(fieldOrDatumDef) && !!fieldOrDatumDef.timeUnit, isFieldDef(fieldOrDatumDef) ? fieldOrDatumDef.sort : undefined),
+    bandPosition: ({ axis, model, channel }) => axis.bandPosition ?? defaultBandPosition(model, channel),
     // we already calculate orient in parse
     orient: ({ orient }) => orient, // Need to cast until Vega supports signal
     tickCount: ({ channel, model, axis, fieldOrDatumDef, scaleType }) => {
@@ -11292,6 +11601,12 @@ const axisRules = {
  */
 function defaultGrid(scaleType, fieldDef) {
     return !hasDiscreteDomain(scaleType) && isFieldDef(fieldDef) && !isBinning(fieldDef?.bin) && !isBinned(fieldDef?.bin);
+}
+function defaultBandPosition(model, channel) {
+    if (model.isRangedOffset(channel)) {
+        return channel === 'x' ? 0 : 1;
+    }
+    return undefined;
 }
 function gridScale(model, channel) {
     const gridChannel = channel === 'x' ? 'y' : 'x';
@@ -11755,7 +12070,17 @@ function mergeMeasures(parentMeasures, childMeasures) {
         for (const op of keys(ops)) {
             if (field in parentMeasures) {
                 // add operator to existing measure field
-                parentMeasures[field][op] = new Set([...(parentMeasures[field][op] ?? []), ...ops[op]]);
+                const parentAggregateParam = parentMeasures[field][op]?.aggregateParam;
+                const childAggregateParam = ops[op].aggregateParam;
+                if (parentAggregateParam !== undefined &&
+                    childAggregateParam !== undefined &&
+                    parentAggregateParam !== childAggregateParam) {
+                    warn(conflictingAggregateParam(op, field, parentAggregateParam, childAggregateParam));
+                }
+                parentMeasures[field][op] = {
+                    aliases: new Set([...(parentMeasures[field][op]?.aliases ?? []), ...ops[op].aliases]),
+                    aggregateParam: childAggregateParam ?? parentAggregateParam,
+                };
             }
             else {
                 parentMeasures[field] = { [op]: ops[op] };
@@ -11799,24 +12124,31 @@ class AggregateNode extends DataFlowNode {
             if (aggregate) {
                 if (aggregate === 'count') {
                     meas['*'] ??= {};
-                    meas['*']['count'] = new Set([vgField(fieldDef, { forAs: true })]);
+                    meas['*']['count'] = { aliases: new Set([vgField(fieldDef, { forAs: true })]) };
                 }
                 else {
                     if (isArgminDef(aggregate) || isArgmaxDef(aggregate)) {
                         const op = isArgminDef(aggregate) ? 'argmin' : 'argmax';
                         const argField = aggregate[op];
                         meas[argField] ??= {};
-                        meas[argField][op] = new Set([vgField({ op, field: argField }, { forAs: true })]);
+                        meas[argField][op] = { aliases: new Set([vgField({ op, field: argField }, { forAs: true })]) };
+                    }
+                    else if (isParameterizedAggregateDef(aggregate)) {
+                        meas[field] ??= {};
+                        meas[field][getAggregateOp(aggregate)] = {
+                            aliases: new Set([vgField(fieldDef, { forAs: true })]),
+                            aggregateParam: getAggregateParam(aggregate),
+                        };
                     }
                     else {
                         meas[field] ??= {};
-                        meas[field][aggregate] = new Set([vgField(fieldDef, { forAs: true })]);
+                        meas[field][aggregate] = { aliases: new Set([vgField(fieldDef, { forAs: true })]) };
                     }
                     // For scale channel with domain === 'unaggregated', add min/max so we can use their union as unaggregated domain
                     if (isScaleChannel(channel) && model.scaleDomain(channel) === 'unaggregated') {
                         meas[field] ??= {};
-                        meas[field]['min'] = new Set([vgField({ field, aggregate: 'min' }, { forAs: true })]);
-                        meas[field]['max'] = new Set([vgField({ field, aggregate: 'max' }, { forAs: true })]);
+                        meas[field]['min'] = { aliases: new Set([vgField({ field, aggregate: 'min' }, { forAs: true })]) };
+                        meas[field]['max'] = { aliases: new Set([vgField({ field, aggregate: 'max' }, { forAs: true })]) };
                     }
                 }
             }
@@ -11835,14 +12167,16 @@ class AggregateNode extends DataFlowNode {
         for (const s of t.aggregate) {
             const { op, field, as } = s;
             if (op) {
+                const alias = as ? as : vgField(s, { forAs: true });
                 if (op === 'count') {
                     meas['*'] ??= {};
-                    meas['*']['count'] = new Set([as ? as : vgField(s, { forAs: true })]);
+                    meas['*']['count'] = { aliases: new Set([alias]) };
                 }
                 else {
+                    const opName = getAggregateOp(op);
                     meas[field] ??= {};
-                    meas[field][op] ??= new Set();
-                    meas[field][op].add(as ? as : vgField(s, { forAs: true }));
+                    meas[field][opName] ??= { aliases: new Set(), aggregateParam: getAggregateParam(op) };
+                    meas[field][opName].aliases.add(alias);
                 }
             }
         }
@@ -11872,7 +12206,7 @@ class AggregateNode extends DataFlowNode {
         const out = new Set();
         for (const field of keys(this.measures)) {
             for (const op of keys(this.measures[field])) {
-                const m = this.measures[field][op];
+                const m = this.measures[field][op].aliases;
                 if (m.size === 0) {
                     out.add(`${op}_${field}`);
                 }
@@ -11890,12 +12224,14 @@ class AggregateNode extends DataFlowNode {
         const ops = [];
         const fields = [];
         const as = [];
+        const aggregateParams = [];
         for (const field of keys(this.measures)) {
             for (const op of keys(this.measures[field])) {
-                for (const alias of this.measures[field][op]) {
+                for (const alias of this.measures[field][op].aliases) {
                     as.push(alias);
                     ops.push(op);
                     fields.push(field === '*' ? null : replacePathInField(field));
+                    aggregateParams.push(this.measures[field][op].aggregateParam ?? null);
                 }
             }
         }
@@ -11906,6 +12242,9 @@ class AggregateNode extends DataFlowNode {
             fields,
             as,
         };
+        if (aggregateParams.some((param) => typeof param === 'number')) {
+            result.aggregate_params = aggregateParams;
+        }
         return result;
     }
 }
@@ -13192,19 +13531,35 @@ function cloneSubtree(facet) {
     return clone;
 }
 /**
+ * Checks whether facet node can swap with the given child to move further down the dataflow.
+ */
+function canMoveFacetBelow(facet, child) {
+    if (child instanceof OutputNode) {
+        return false;
+    }
+    if (child instanceof AggregateNode) {
+        return facet.canMoveBelowAggregate;
+    }
+    return true;
+}
+/**
  * Move facet nodes down to the next fork or output node. Also pull the main output with the facet node.
  * After moving down the facet node, make a copy of the subtree and make it a child of the main output.
  */
 function moveFacetDown(node) {
     if (node instanceof FacetNode) {
-        if (node.numChildren() === 1 && !(node.children[0] instanceof OutputNode)) {
-            // move down until we hit a fork or output node
+        if (node.numChildren() === 1 && canMoveFacetBelow(node, node.children[0])) {
+            // move down until we hit a fork, an output node, or an aggregate that would break sorting
             const child = node.children[0];
             if (child instanceof AggregateNode ||
                 child instanceof StackNode ||
                 child instanceof WindowTransformNode ||
                 child instanceof JoinAggregateTransformNode) {
                 child.addDimensions(node.fields);
+                if (child instanceof AggregateNode) {
+                    // also group by the sort index fields so that the aggregate does not drop them
+                    child.addDimensions(node.sortIndexFields);
+                }
             }
             child.swapWithParent();
             moveFacetDown(node);
@@ -13330,7 +13685,7 @@ function defaultScaleResolve(channel, model) {
         return 'shared';
     }
     else if (isConcatModel(model)) {
-        return isXorY(channel) || channel === 'theta' || channel === 'radius' ? 'independent' : 'shared';
+        return isXorY(channel) || isXorYOffset(channel) || isPolarPositionChannel(channel) ? 'independent' : 'shared';
     }
     /* istanbul ignore next: should never reach here. */
     throw new Error('invalid model type for resolve');
@@ -13483,17 +13838,14 @@ function parseDomainForChannel(model, channel) {
     }
     return parseSingleChannelDomain(scaleType, domain, model, channel);
 }
-function mapDomainToDataSignal(domain, type, timeUnit) {
-    return domain.map((v) => {
-        const data = valueExpr(v, { timeUnit, type });
-        return { signal: `{data: ${data}}` };
-    });
+function mapDomainToSignals(domain, type, timeUnit) {
+    return domain.map((v) => ({ signal: valueExpr(v, { timeUnit, type }) }));
 }
 function convertDomainIfItIsDateTime(domain, type, timeUnit) {
     // explicit value
     const normalizedTimeUnit = normalizeTimeUnit(timeUnit)?.unit;
     if (type === 'temporal' || normalizedTimeUnit) {
-        return mapDomainToDataSignal(domain, type, normalizedTimeUnit);
+        return [mapDomainToSignals(domain, type, normalizedTimeUnit)];
     }
     return [domain]; // Date time won't make sense
 }
@@ -13857,7 +14209,19 @@ function mergeDomains(domains) {
         };
         return domain;
     }
-    return { fields: uniqueDomains, ...(sort ? { sort } : {}) };
+    const domain = {
+        fields: uniqueDomains.map(unionDomainField),
+        ...(sort ? { sort } : {}),
+    };
+    return domain;
+}
+function unionDomainField(domain) {
+    if (isArray(domain) && domain.some(isSignalRef)) {
+        return {
+            signal: `[${domain.map((v) => `{data: ${isSignalRef(v) ? v.signal : stringify(v)}}`).join(', ')}]`,
+        };
+    }
+    return domain;
 }
 /**
  * Return a field if a scale uses a single field.
@@ -13982,6 +14346,31 @@ class FacetNode extends DataFlowNode {
             }
         }
         return f;
+    }
+    /**
+     * The sort index fields of the facet channels that are sorted by an array.
+     */
+    get sortIndexFields() {
+        const fields = [];
+        for (const channel of FACET_CHANNELS) {
+            const sortIndexField = this[channel]?.sortIndexField;
+            if (sortIndexField) {
+                fields.push(sortIndexField);
+            }
+        }
+        return fields;
+    }
+    get canMoveBelowAggregate() {
+        for (const channel of FACET_CHANNELS) {
+            const info = this[channel];
+            if (!info) {
+                continue;
+            }
+            if (info.sortField || (info.sortIndexField && isBinning(this.model.facet[channel].bin))) {
+                return false;
+            }
+        }
+        return true;
     }
     dependentFields() {
         const depFields = new Set(this.fields);
@@ -14441,7 +14830,17 @@ function sizeSignals(model, sizeType) {
         const expr = isWidth ? 'containerSize()[0]' : 'containerSize()[1]';
         const defaultValue = getViewConfigContinuousSize(model.config.view, isWidth ? 'width' : 'height');
         const safeExpr = `isFinite(${expr}) ? ${expr} : ${defaultValue}`;
-        return [{ name, init: safeExpr, on: [{ update: safeExpr, events: 'window:resize' }] }];
+        return [
+            {
+                name,
+                init: safeExpr,
+                // `window:resize` supports Vega versions before 6.4, which have no `container:resize` event
+                on: [
+                    { update: safeExpr, events: 'window:resize' },
+                    { update: safeExpr, events: 'container:resize' },
+                ],
+            },
+        ];
     }
     else if (size !== 'merged') {
         return [
@@ -15882,6 +16281,9 @@ function getOffsetRange(channel, model, offsetScaleType) {
             }
         }
         // otherwise use the position
+        if (channel === YOFFSET && hasContinuousDomain(offsetScaleType)) {
+            return [{ signal: `bandwidth('${positionScaleName}')` }, 0];
+        }
         return [0, { signal: `bandwidth('${positionScaleName}')` }];
     }
     else {
@@ -16127,7 +16529,7 @@ const scaleRules = {
         const sort = isFieldDef(fieldOrDatumDef) ? fieldOrDatumDef.sort : undefined;
         return reverse(scaleType, sort, channel, config.scale);
     },
-    zero: ({ channel, fieldOrDatumDef, domain, markDef, scaleType, config, hasSecondaryRangeChannel }) => zero(channel, fieldOrDatumDef, domain, markDef, scaleType, config.scale, hasSecondaryRangeChannel),
+    zero: ({ model, channel, fieldOrDatumDef, domain, markDef, scaleType, config, hasSecondaryRangeChannel }) => zero(channel, fieldOrDatumDef, domain, markDef, scaleType, config.scale, hasSecondaryRangeChannel, isXorYOffset(channel) && model.isRangedOffset(getMainChannelFromOffsetChannel(channel))),
 };
 // This method is here rather than in range.ts to avoid circular dependency.
 function parseScaleRange(model) {
@@ -16294,7 +16696,7 @@ function reverse(scaleType, sort, channel, scaleConfig) {
     }
     return undefined;
 }
-function zero(channel, fieldDef, specifiedDomain, markDef, scaleType, scaleConfig, hasSecondaryRangeChannel) {
+function zero(channel, fieldDef, specifiedDomain, markDef, scaleType, scaleConfig, hasSecondaryRangeChannel, hasRangedOffset = false) {
     // If users explicitly provide a domain, we should not augment zero as that will be unexpected.
     const hasCustomDomain = !!specifiedDomain && specifiedDomain !== 'unaggregated';
     if (hasCustomDomain) {
@@ -16318,6 +16720,10 @@ function zero(channel, fieldDef, specifiedDomain, markDef, scaleType, scaleConfi
     if (channel === 'size' && fieldDef.type === 'quantitative' && !isContinuousToDiscrete(scaleType)) {
         return true;
     }
+    // 1.5) the offset scale of a ranged offset mark, so all marks in the band share the in-band zero baseline
+    if (isXorYOffset(channel)) {
+        return hasRangedOffset;
+    }
     // 2) non-binned, quantitative x-scale or y-scale
     // (For binning, we should not include zero by default because binning are calculated without zero.)
     // (For area/bar charts with ratio scale chart, we should always include zero.)
@@ -16329,7 +16735,7 @@ function zero(channel, fieldDef, specifiedDomain, markDef, scaleType, scaleConfi
                 return false;
             }
         }
-        if (contains(['bar', 'area'], type) && !hasSecondaryRangeChannel) {
+        if (isBarOrArea(type) && !hasSecondaryRangeChannel) {
             return true;
         }
         return scaleConfig?.zero;
@@ -17442,7 +17848,7 @@ class LookupNode extends DataFlowNode {
             // lookup a few fields and add create a flat output
             foreign = {
                 values: this.transform.from.fields,
-                ...(this.transform.as ? { as: array(this.transform.as) } : {}),
+                ...(this.transform.as ? { as: [...array(this.transform.as)] } : {}),
             };
         }
         else {
@@ -19062,6 +19468,9 @@ class AxisComponent extends Split {
 }
 
 function labels(model, channel, specifiedLabelsSpec) {
+    return labelsPositionSpec(model, channel, labelsTextSpec(model, channel, specifiedLabelsSpec));
+}
+function labelsTextSpec(model, channel, specifiedLabelsSpec) {
     const { encoding, config } = model;
     const fieldOrDatumDef = getFieldOrDatumDef(encoding[channel]) ?? getFieldOrDatumDef(encoding[getSecondaryRangeChannel(channel)]);
     const axis = model.axis(channel) || {};
@@ -19108,6 +19517,34 @@ function labels(model, channel, specifiedLabelsSpec) {
         }
     }
     return specifiedLabelsSpec;
+}
+/**
+ * Vega positions band-scale axis labels at the band center regardless of the axis `bandPosition`
+ * (only ticks and grid lines move), so ranged offset marks need an explicit label position
+ * override to anchor the labels at the in-band baseline.
+ */
+function labelsPositionSpec(model, channel, specifiedLabelsSpec) {
+    if ('x' in specifiedLabelsSpec || 'y' in specifiedLabelsSpec) {
+        return specifiedLabelsSpec;
+    }
+    const inferredBandPosition = defaultBandPosition(model, channel);
+    if (inferredBandPosition === undefined) {
+        // Without an offset-driven band position, Vega's axis handles any specified bandPosition natively.
+        return specifiedLabelsSpec;
+    }
+    const bandPosition = model.axis(channel)?.bandPosition ?? inferredBandPosition;
+    if (bandPosition === 0.5) {
+        return specifiedLabelsSpec;
+    }
+    const positionRef = {
+        scale: model.scaleName(channel),
+        signal: 'datum.value',
+        band: bandPosition,
+    };
+    return {
+        ...(channel === 'x' ? { x: positionRef } : { y: positionRef }),
+        ...specifiedLabelsSpec,
+    };
 }
 
 function parseUnitAxes(model) {
@@ -19440,6 +19877,25 @@ class UnitModel extends ModelWithField {
     axis(channel) {
         return this.specifiedAxes[channel];
     }
+    /**
+     * Returns true if the given position channel is in ranged-offset mode: a bar/area mark
+     * whose missing or discrete position channel has a quantitative offset channel, so the
+     * mark spans from an in-band zero baseline to the offset value.
+     */
+    isRangedOffset(channel) {
+        const { encoding, markDef } = this;
+        if (!isBarOrArea(markDef.type)) {
+            return false;
+        }
+        if (encoding[getSecondaryRangeChannel(channel)] || !channelHasQuantitativeOffset(encoding, channel)) {
+            return false;
+        }
+        const channelDef = encoding[channel];
+        if (channelDef === undefined) {
+            return true;
+        }
+        return isFieldOrDatumDef(channelDef) && hasDiscreteDomain(this.getScaleComponent(channel)?.get('type'));
+    }
     legend(channel) {
         return this.specifiedLegends[channel];
     }
@@ -19679,6 +20135,12 @@ const arc = {
 const area = {
     vgMark: 'area',
     encodeEntry: (model) => {
+        const xRangeFromOffset = model.isRangedOffset('x');
+        const yRangeFromOffset = model.isRangedOffset('y');
+        const hasOffsetDrivenRange = xRangeFromOffset || yRangeFromOffset;
+        const xIsRange = xRangeFromOffset || (!hasOffsetDrivenRange && model.markDef.orient === 'horizontal');
+        const yIsRange = yRangeFromOffset || (!hasOffsetDrivenRange && model.markDef.orient === 'vertical');
+        const yDefaultPos = yRangeFromOffset && !model.encoding.y ? 'zeroOrMax' : 'zeroOrMin';
         return {
             ...baseEncodeEntry(model, {
                 align: 'ignore',
@@ -19691,12 +20153,12 @@ const area = {
             ...pointOrRangePosition('x', model, {
                 defaultPos: 'zeroOrMin',
                 defaultPos2: 'zeroOrMin',
-                range: model.markDef.orient === 'horizontal',
+                range: xIsRange,
             }),
             ...pointOrRangePosition('y', model, {
-                defaultPos: 'zeroOrMin',
+                defaultPos: yDefaultPos,
                 defaultPos2: 'zeroOrMin',
-                range: model.markDef.orient === 'vertical',
+                range: yIsRange,
             }),
             ...defined(model),
         };
@@ -19706,7 +20168,7 @@ const area = {
 const bar = {
     vgMark: 'rect',
     encodeEntry: (model) => {
-        return {
+        const encodeEntry = {
             ...baseEncodeEntry(model, {
                 align: 'ignore',
                 baseline: 'ignore',
@@ -19717,6 +20179,10 @@ const bar = {
             }),
             ...rectPosition(model, 'x'),
             ...rectPosition(model, 'y'),
+        };
+        return {
+            ...encodeEntry,
+            ...cornerRadiusEnd(model, encodeEntry),
         };
     },
 };
@@ -20006,9 +20472,11 @@ function parseMarkGroupsAndLabels(model) {
         // otherwise use standard mark groups
     }
     else if (model.mark === BAR) {
-        const hasCornerRadius = VG_CORNERRADIUS_CHANNELS.some((prop) => getMarkPropOrConfig(prop, model.markDef, model.config));
+        const cornerRadiusEnd = getMarkPropOrConfig('cornerRadiusEnd', model.markDef, model.config);
+        const hasCornerRadius = cornerRadiusEnd ||
+            VG_CORNERRADIUS_CHANNELS.some((prop) => getMarkPropOrConfig(prop, model.markDef, model.config));
         if (model.stack && !model.fieldDef('size') && hasCornerRadius) {
-            return { mark: getGroupsForStackedBarWithCornerRadius(model) };
+            return { mark: getGroupsForStackedBarWithCornerRadius(model, cornerRadiusEnd) };
         }
     }
     const label = getLabelMark(model, model.getName('marks'));
@@ -20045,7 +20513,7 @@ const STACK_GROUP_PREFIX = 'stack_group_';
  * If stack is used and the model doesn't have size encoding, we put the mark into groups,
  * and apply cornerRadius properties at the group.
  */
-function getGroupsForStackedBarWithCornerRadius(model) {
+function getGroupsForStackedBarWithCornerRadius(model, cornerRadiusEnd) {
     // Generate the mark
     const [mark] = getMarkGroup(model, { fromPrefix: STACK_GROUP_PREFIX });
     // Get the scale for the stacked field
@@ -20117,6 +20585,15 @@ function getGroupsForStackedBarWithCornerRadius(model) {
             mark.encode.update[key] = { value: 0 };
         }
     }
+    groupUpdate = {
+        ...groupUpdate,
+        ...cornerRadiusEndForStackedBar(model, cornerRadiusEnd, fieldScale, {
+            minStart: stackField({ prefix: 'min', suffix: 'start' }),
+            maxStart: stackField({ prefix: 'max', suffix: 'start' }),
+            minEnd: stackField({ prefix: 'min', suffix: 'end' }),
+            maxEnd: stackField({ prefix: 'max', suffix: 'end' }),
+        }),
+    };
     const groupby = [];
     if (model.stack.groupbyChannels?.length > 0) {
         for (const groupbyChannel of model.stack.groupbyChannels) {

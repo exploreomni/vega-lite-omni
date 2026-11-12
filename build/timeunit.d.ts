@@ -208,8 +208,9 @@ export declare function containsTimeUnit(fullTimeUnit: TimeUnit, timeUnit: TimeU
 /**
  * Returns Vega expression for a given timeUnit and fieldRef
  */
-export declare function fieldExpr(fullTimeUnit: TimeUnit, field: string, { end }?: {
-    end: boolean;
+export declare function fieldExpr(fullTimeUnit: TimeUnit, field: string, { end, expr }?: {
+    end?: boolean;
+    expr?: 'datum' | 'datum.datum';
 }): string;
 export declare function timeUnitSpecifierExpression(timeUnit: TimeUnit): string;
 /**

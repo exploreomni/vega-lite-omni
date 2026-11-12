@@ -2,14 +2,14 @@ import type { SignalRef } from 'vega';
 import { ScaleChannel } from '../../channel.js';
 import { Scale, ScaleType } from '../../scale.js';
 import { ParameterExtent } from '../../selection.js';
-import { VgNonUnionDomain, VgScale } from '../../vega.schema.js';
+import { VgDomainsToUnion, VgScale } from '../../vega.schema.js';
 import { Explicit, Split } from '../split.js';
 /**
  * All VgDomain property except domain.
  * (We exclude domain as we have a special "domains" array that allow us merge them all at once in assemble.)
  */
 export type ScaleComponentProps = Omit<VgScale, 'domain' | 'reverse'> & {
-    domains: VgNonUnionDomain[];
+    domains: VgDomainsToUnion;
     selectionExtent?: ParameterExtent;
     reverse?: boolean | SignalRef;
 };

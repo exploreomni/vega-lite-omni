@@ -39,5 +39,5 @@ export declare function padding(channel: ScaleChannel, scaleType: ScaleType, sca
 export declare function paddingInner(paddingValue: number | SignalRef, channel: ScaleChannel, mark: Mark, scaleType: ScaleType, scaleConfig: ScaleConfig<SignalRef>, hasNestedOffsetScale?: boolean): number | SignalRef;
 export declare function paddingOuter(paddingValue: number | SignalRef, channel: ScaleChannel, scaleType: ScaleType, paddingInnerValue: number | SignalRef, scaleConfig: ScaleConfig<SignalRef>, hasNestedOffsetScale?: boolean): number | SignalRef;
 export declare function reverse(scaleType: ScaleType, sort: Sort<string>, channel: ScaleChannel, scaleConfig: ScaleConfig<SignalRef>): boolean | SignalRef;
-export declare function zero(channel: ScaleChannel, fieldDef: TypedFieldDef<string> | ScaleDatumDef, specifiedDomain: Domain, markDef: MarkDef, scaleType: ScaleType, scaleConfig: ScaleConfig<SignalRef>, hasSecondaryRangeChannel: boolean): boolean;
+export declare function zero(channel: ScaleChannel, fieldDef: TypedFieldDef<string> | ScaleDatumDef, specifiedDomain: Domain, markDef: MarkDef, scaleType: ScaleType, scaleConfig: ScaleConfig<SignalRef>, hasSecondaryRangeChannel: boolean, hasRangedOffset?: boolean): boolean;
 //# sourceMappingURL=properties.d.ts.map

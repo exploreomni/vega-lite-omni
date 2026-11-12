@@ -37,7 +37,7 @@ export interface SelectionCompiler<T extends SelectionType = SelectionType> {
     modifyExpr?: (model: UnitModel, selCmpt: SelectionComponent<T>, expr: string) => string;
     marks?: (model: UnitModel, selCmpt: SelectionComponent<T>, marks: any[]) => any[];
 }
-export declare const selectionCompilers: SelectionCompiler[];
+export declare const selectionCompilers: SelectionCompiler<any>[];
 export declare function getFacetModel(model: Model): FacetModel;
 export declare function unitName(model: Model, { escape }?: {
     escape: boolean;

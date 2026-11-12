@@ -37,6 +37,11 @@ export declare class FacetNode extends DataFlowNode {
     constructor(parent: DataFlowNode, model: FacetModel, name: string, data: string);
     hash(): string;
     get fields(): string[];
+    /**
+     * The sort index fields of the facet channels that are sorted by an array.
+     */
+    get sortIndexFields(): string[];
+    get canMoveBelowAggregate(): boolean;
     dependentFields(): Set<string>;
     producedFields(): Set<string>;
     /**

@@ -48,8 +48,11 @@ export declare function unrecognizedParse(p: string): string;
 export declare function differentParse(field: string, local: string, ancestor: string): string;
 export declare const ADD_SAME_CHILD_TWICE = "Attempt to add the same child twice.";
 export declare function invalidTransformIgnored(transform: any): string;
+export declare function conflictingAggregateParam(op: string, field: string, parentParam: number, childParam: number): string;
 export declare const NO_FIELDS_NEEDS_AS = "If \"from.fields\" is not specified, \"as\" has to be a string that specifies the key to be used for the data from the secondary source.";
 export declare function customFormatTypeNotAllowed(channel: ExtendedChannel): string;
+export declare function invalidTooltipFilter(filter: any): string;
+export declare const TOOLTIP_FILTER_REQUIRES_FIELD = "Ignoring tooltip filter because it requires a field (argmin and argmax fields are not supported).";
 export declare function projectionOverridden<ES extends ExprRef | SignalRef>(opt: {
     parentProjection: Projection<ES>;
     projection: Projection<ES>;
@@ -91,7 +94,7 @@ export declare function scalePropertyNotWorkWithScaleType(scaleType: ScaleType, 
 export declare function scaleTypeNotWorkWithMark(mark: Mark, scaleType: ScaleType): string;
 export declare function stepDropped(channel: 'width' | 'height'): string;
 export declare function mergeConflictingProperty<T>(property: string | number | symbol, propertyOf: SplitParentProperty, v1: T, v2: T): string;
-export declare function mergeConflictingDomainProperty<T>(property: 'domains', propertyOf: SplitParentProperty, v1: T, v2: T): string;
+export declare function mergeConflictingDomainProperty<T>(property: 'domain' | 'domains', propertyOf: SplitParentProperty, v1: T, v2: T): string;
 export declare function independentScaleMeansIndependentGuide(channel: Channel): string;
 export declare function domainSortDropped(sort: VgSortField): string;
 export declare const MORE_THAN_ONE_SORT = "Domains that should be unioned has conflicting sort properties. Sort will be set to true.";

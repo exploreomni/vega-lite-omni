@@ -1,6 +1,6 @@
 import { NewSignal, SignalRef } from 'vega';
 import { AxisInternal } from '../axis.js';
-import { Channel, NonPositionScaleChannel, PositionChannel, ScaleChannel, SingleDefChannel } from '../channel.js';
+import { Channel, NonPositionScaleChannel, PolarPositionScaleChannel, PositionChannel, PositionScaleChannel, ScaleChannel, SingleDefChannel } from '../channel.js';
 import { Config } from '../config.js';
 import * as vlEncoding from '../encoding.js';
 import { Encoding } from '../encoding.js';
@@ -21,7 +21,7 @@ import { ScaleIndex } from './scale/component.js';
 /**
  * Internal model of Vega-Lite specification for the compiler.
  */
-export declare class UnitModel extends ModelWithField {
+export declare class UnitModel extends ModelWithField<Encoding<string>> {
     readonly markDef: MarkDef<Mark, SignalRef>;
     readonly encoding: Encoding<string>;
     readonly specifiedScales: ScaleIndex;
@@ -42,6 +42,12 @@ export declare class UnitModel extends ModelWithField {
      */
     scaleDomain(channel: ScaleChannel): Domain;
     axis(channel: PositionChannel): AxisInternal;
+    /**
+     * Returns true if the given position channel is in ranged-offset mode: a bar/area mark
+     * whose missing or discrete position channel has a quantitative offset channel, so the
+     * mark spans from an in-band zero baseline to the offset value.
+     */
+    isRangedOffset(channel: PositionScaleChannel | PolarPositionScaleChannel): boolean;
     legend(channel: NonPositionScaleChannel): LegendInternal;
     private initScales;
     private initScale;

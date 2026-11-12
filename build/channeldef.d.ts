@@ -2,7 +2,7 @@ import { AreaLabelMethod, Gradient, LabelAnchor, LineLabelAnchor, ScaleType, Sig
 import { Aggregate } from './aggregate.js';
 import { Axis } from './axis.js';
 import { Bin, BinParams } from './bin.js';
-import { Channel, ExtendedChannel, LabelInheritableChannel, PolarPositionScaleChannel, PositionScaleChannel } from './channel.js';
+import { ExtendedChannel, LabelInheritableChannel, PolarPositionScaleChannel, PositionScaleChannel } from './channel.js';
 import { CompositeAggregate } from './compositemark/index.js';
 import { Config } from './config.js';
 import { DateTime } from './datetime.js';
@@ -13,7 +13,7 @@ import { ImputeParams } from './impute.js';
 import { Legend } from './legend.js';
 import { LogicalComposition } from './logical.js';
 import { Mark, MarkDef, RelativeBandSize } from './mark.js';
-import { ParameterPredicate, Predicate } from './predicate.js';
+import { ParameterPredicate, Predicate, TooltipFieldFilter } from './predicate.js';
 import { Scale } from './scale.js';
 import { Sort, SortOrder } from './sort.js';
 import { StackOffset } from './stack.js';
@@ -258,6 +258,14 @@ export interface FieldDefBase<F, B extends Bin = Bin> extends BandMixins {
      * 2) `field` is not required if `aggregate` is `count`.
      */
     field?: F;
+    /**
+     * Controls whether this field appears in tooltips and ARIA descriptions generated from the encoding (e.g., when the mark definition's `tooltip` property is `true`).
+     *
+     * __Default value:__ `true`
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#encoding) documentation.
+     */
+    tooltip?: boolean;
     /**
      * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
      * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
@@ -513,6 +521,14 @@ export declare function isOrderOnlyDef<F extends Field>(orderDef: OrderFieldDef<
 export type OrderValueDef = ConditionValueDefMixins<number> & NumericValueDef;
 export interface StringFieldDef<F extends Field> extends FieldDefWithoutScale<F, StandardType>, FormatMixins {
 }
+export interface TooltipFieldDef<F extends Field> extends StringFieldDef<F> {
+    /**
+     * A [predicate](https://vega.github.io/vega-lite/docs/predicate.html) for including this field in the generated tooltip and ARIA description. The predicate is tested against this field's value and must not include `field` or `timeUnit` properties. For example, `"filter": {"gt": 0}` includes the field only when its value is positive, and `"filter": {"valid": true}` includes it only when it is not `null` and not `NaN`.
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#channel) documentation.
+     */
+    filter?: TooltipFieldFilter;
+}
 export type FieldDef<F extends Field, T extends Type = any> = SecondaryFieldDef<F> | TypedFieldDef<F, T>;
 export type ChannelDef<F extends Field = string> = Encoding<F>[keyof Encoding<F>];
 export declare function isConditionalDef<CD extends ChannelDef<any> | GuideEncodingConditionalValueDef | ExprRef | SignalRef>(channelDef: CD): channelDef is CD & {
@@ -617,6 +633,14 @@ export declare function initFieldDef(fd: FieldDef<string, any>, channel: Extende
      */
     field?: string;
     /**
+     * Controls whether this field appears in tooltips and ARIA descriptions generated from the encoding (e.g., when the mark definition's `tooltip` property is `true`).
+     *
+     * __Default value:__ `true`
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#encoding) documentation.
+     */
+    tooltip?: boolean;
+    /**
      * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
      * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
      *
@@ -668,6 +692,14 @@ export declare function initFieldDef(fd: FieldDef<string, any>, channel: Extende
      * 2) `field` is not required if `aggregate` is `count`.
      */
     field?: string;
+    /**
+     * Controls whether this field appears in tooltips and ARIA descriptions generated from the encoding (e.g., when the mark definition's `tooltip` property is `true`).
+     *
+     * __Default value:__ `true`
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#encoding) documentation.
+     */
+    tooltip?: boolean;
     /**
      * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
      * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
@@ -756,6 +788,14 @@ export declare function initFieldDef(fd: FieldDef<string, any>, channel: Extende
      */
     field?: string;
     /**
+     * Controls whether this field appears in tooltips and ARIA descriptions generated from the encoding (e.g., when the mark definition's `tooltip` property is `true`).
+     *
+     * __Default value:__ `true`
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#encoding) documentation.
+     */
+    tooltip?: boolean;
+    /**
      * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
      * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
      *
@@ -842,6 +882,14 @@ export declare function initFieldDef(fd: FieldDef<string, any>, channel: Extende
      * 2) `field` is not required if `aggregate` is `count`.
      */
     field?: string;
+    /**
+     * Controls whether this field appears in tooltips and ARIA descriptions generated from the encoding (e.g., when the mark definition's `tooltip` property is `true`).
+     *
+     * __Default value:__ `true`
+     *
+     * __See also:__ [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html#encoding) documentation.
+     */
+    tooltip?: boolean;
     /**
      * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
      * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
@@ -967,88 +1015,13 @@ export declare function initFieldDef(fd: FieldDef<string, any>, channel: Extende
         title?: Text | null | SignalRef;
     };
     sort?: SortOrder | import("./sort.js").SortArray | import("./sort.js").EncodingSortField<string>;
-    /**
-     * __Required.__ A string defining the name of the field from which to pull a data value
-     * or an object defining iterated values from the [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
-     *
-     * __See also:__ [`field`](https://vega.github.io/vega-lite/docs/field.html) documentation.
-     *
-     * __Notes:__
-     * 1)  Dots (`.`) and brackets (`[` and `]`) can be used to access nested objects (e.g., `"field": "foo.bar"` and `"field": "foo['bar']"`).
-     * If field names contain dots or brackets but are not nested, you can use `\\` to escape dots and brackets (e.g., `"a\\.b"` and `"a\\[0\\]"`).
-     * See more details about escaping in the [field documentation](https://vega.github.io/vega-lite/docs/field.html).
-     * 2) `field` is not required if `aggregate` is `count`.
-     */
     field?: string;
-    /**
-     * Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
-     * or [a temporal field that gets casted as ordinal](https://vega.github.io/vega-lite/docs/type.html#cast).
-     *
-     * __Default value:__ `undefined` (None)
-     *
-     * __See also:__ [`timeUnit`](https://vega.github.io/vega-lite/docs/timeunit.html) documentation.
-     */
-    timeUnit?: TimeUnit | BinnedTimeUnit | TimeUnitParams;
-    /**
-     * Aggregation function for the field
-     * (e.g., `"mean"`, `"sum"`, `"median"`, `"min"`, `"max"`, `"count"`).
-     *
-     * __Default value:__ `undefined` (None)
-     *
-     * __See also:__ [`aggregate`](https://vega.github.io/vega-lite/docs/aggregate.html) documentation.
-     */
-    aggregate?: Aggregate | HiddenCompositeAggregate;
-    /**
-     * A flag for binning a `quantitative` field, [an object defining binning parameters](https://vega.github.io/vega-lite/docs/bin.html#bin-parameters), or indicating that the data for `x` or `y` channel are binned before they are imported into Vega-Lite (`"binned"`).
-     *
-     * - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html#bin-parameters) will be applied.
-     *
-     * - If `"binned"`, this indicates that the data for the `x` (or `y`) channel are already binned. You can map the bin-start field to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be formatted similar to binning in Vega-Lite.  To adjust the axis ticks based on the bin step, you can also set the axis's [`tickMinStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
-     *
-     * __Default value:__ `false`
-     *
-     * __See also:__ [`bin`](https://vega.github.io/vega-lite/docs/bin.html) documentation.
-     */
-    bin?: boolean | BinParams;
-    /**
-     * Relative position on a band of a stacked, binned, time unit, or band scale. For example, the marks will be positioned at the beginning of the band if set to `0`, and at the middle of the band if set to `0.5`.
-     *
-     * @minimum 0
-     * @maximum 1
-     */
-    bandPosition?: number;
-    title?: Text | null | SignalRef;
-    /**
-     * The type of measurement (`"quantitative"`, `"temporal"`, `"ordinal"`, or `"nominal"`) for the encoded field or constant value (`datum`).
-     * It can also be a `"geojson"` type for encoding ['geoshape'](https://vega.github.io/vega-lite/docs/geoshape.html).
-     *
-     * Vega-Lite automatically infers data types in many cases as discussed below. However, type is required for a field if:
-     * (1) the field is not nominal and the field encoding has no specified `aggregate` (except `argmin` and `argmax`), `bin`, scale type, custom `sort` order, nor `timeUnit`
-     * or (2) if you wish to use an ordinal scale for a field with `bin` or `timeUnit`.
-     *
-     * __Default value:__
-     *
-     * 1) For a data `field`, `"nominal"` is the default data type unless the field encoding has `aggregate`, `channel`, `bin`, scale type, `sort`, or `timeUnit` that satisfies the following criteria:
-     * - `"quantitative"` is the default type if (1) the encoded field contains `bin` or `aggregate` except `"argmin"` and `"argmax"`, (2) the encoding channel is `latitude` or `longitude` channel or (3) if the specified scale type is [a quantitative scale](https://vega.github.io/vega-lite/docs/scale.html#type).
-     * - `"temporal"` is the default type if (1) the encoded field contains `timeUnit` or (2) the specified scale type is a time or utc scale
-     * - `"ordinal"` is the default type if (1) the encoded field contains a [custom `sort` order](https://vega.github.io/vega-lite/docs/sort.html#specifying-custom-sort-order), (2) the specified scale type is an ordinal/point/band scale, or (3) the encoding channel is `order`.
-     *
-     * 2) For a constant value in data domain (`datum`):
-     * - `"quantitative"` if the datum is a number
-     * - `"nominal"` if the datum is a string
-     * - `"temporal"` if the datum is [a date time object](https://vega.github.io/vega-lite/docs/datetime.html)
-     *
-     * __Note:__
-     * - Data `type` describes the semantics of the data rather than the primitive data types (number, string, etc.). The same primitive data type can have different types of measurement. For example, numeric data can represent quantitative, ordinal, or nominal data.
-     * - Data values for a temporal field can be either a date-time string (e.g., `"2015-03-07 12:32:17"`, `"17:01"`, `"2015-03-16"`. `"2015"`) or a timestamp number (e.g., `1552199579097`).
-     * - When using with [`bin`](https://vega.github.io/vega-lite/docs/bin.html), the `type` property can be either `"quantitative"` (for using a linear bin scale) or [`"ordinal"` (for using an ordinal bin scale)](https://vega.github.io/vega-lite/docs/type.html#cast-bin).
-     * - When using with [`timeUnit`](https://vega.github.io/vega-lite/docs/timeunit.html), the `type` property can be either `"temporal"` (default, for using a temporal scale) or [`"ordinal"` (for using an ordinal scale)](https://vega.github.io/vega-lite/docs/type.html#cast-bin).
-     * - When using with [`aggregate`](https://vega.github.io/vega-lite/docs/aggregate.html), the `type` property refers to the post-aggregation data type. For example, we can calculate count `distinct` of a categorical field `"cat"` using `{"aggregate": "distinct", "field": "cat"}`. The `"type"` of the aggregate output is `"quantitative"`.
-     * - Secondary channels (e.g., `x2`, `y2`, `xError`, `yError`) do not have `type` as they must have exactly the same type as their primary channels (e.g., `x`, `y`).
-     *
-     * __See also:__ [`type`](https://vega.github.io/vega-lite/docs/type.html) documentation.
-     */
     type?: StandardType;
+    title?: Text | null | SignalRef;
+    bandPosition?: number;
+    timeUnit?: TimeUnit | BinnedTimeUnit | TimeUnitParams;
+    bin?: boolean | BinParams;
+    aggregate?: Aggregate | HiddenCompositeAggregate;
 };
 export declare function normalizeBin(bin: BinParams | boolean | 'binned', channel?: ExtendedChannel): BinParams;
 export declare function channelCompatibility(fieldDef: TypedFieldDef<Field>, channel: ExtendedChannel): {
@@ -1083,6 +1056,6 @@ export declare function valueArray(fieldOrDatumDef: TypedFieldDef<string> | Datu
 /**
  * Checks whether a fieldDef for a particular channel requires a computed bin range.
  */
-export declare function binRequiresRange(fieldDef: FieldDef<string>, channel: Channel): boolean;
+export declare function binRequiresRange(fieldDef: FieldDef<string>, channel: ExtendedChannel): boolean;
 export {};
 //# sourceMappingURL=channeldef.d.ts.map

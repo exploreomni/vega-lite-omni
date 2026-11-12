@@ -1,7 +1,7 @@
+import { Channel } from '../../../channel.js';
 import { Config } from '../../../config.js';
 import { Encoding } from '../../../encoding.js';
 import { StackProperties } from '../../../stack.js';
-import { Dict } from '../../../util.js';
 import { VgValueRef } from '../../../vega.schema.js';
 import { UnitModel } from '../../unit.js';
 export declare function tooltip(model: UnitModel, opt?: {
@@ -13,9 +13,15 @@ export declare function tooltip(model: UnitModel, opt?: {
         signal: string;
     };
 };
-export declare function tooltipData(encoding: Encoding<string>, stack: StackProperties, config: Config, { reactiveGeom }?: {
+export type TooltipTuple = {
+    channel: Channel;
+    key: string;
+    value: string;
+    test?: string;
+};
+export declare function tooltipDataTuples(encoding: Encoding<string>, stack: StackProperties, config: Config, { reactiveGeom }?: {
     reactiveGeom?: boolean;
-}): Dict<string>;
+}): TooltipTuple[];
 export declare function tooltipRefForEncoding(encoding: Encoding<string>, stack: StackProperties, config: Config, { reactiveGeom }?: {
     reactiveGeom?: boolean;
 }): {

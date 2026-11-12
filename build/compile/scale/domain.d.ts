@@ -2,12 +2,12 @@ import type { SignalRef } from 'vega';
 import { ScaleChannel } from '../../channel.js';
 import { TypedFieldDef } from '../../channeldef.js';
 import { ScaleType } from '../../scale.js';
-import { VgDomain, VgNonUnionDomain, VgSortField } from '../../vega.schema.js';
+import { VgDomain, VgDomainsToUnion, VgSortField } from '../../vega.schema.js';
 import { Model } from '../model.js';
 import { Explicit } from '../split.js';
 import { UnitModel } from '../unit.js';
 export declare function parseScaleDomain(model: Model): void;
-export declare function parseDomainForChannel(model: UnitModel, channel: ScaleChannel): Explicit<VgNonUnionDomain[]>;
+export declare function parseDomainForChannel(model: UnitModel, channel: ScaleChannel): Explicit<VgDomainsToUnion>;
 export declare function domainSort(model: UnitModel, channel: ScaleChannel, scaleType: ScaleType): undefined | true | VgSortField;
 /**
  * Determine if a scale can use unaggregated domain.
@@ -23,7 +23,7 @@ export declare function canUseUnaggregatedDomain(fieldDef: TypedFieldDef<string>
 /**
  * Converts an array of domains to a single Vega scale domain.
  */
-export declare function mergeDomains(domains: VgNonUnionDomain[]): VgDomain;
+export declare function mergeDomains(domains: VgDomainsToUnion): VgDomain;
 /**
  * Return a field if a scale uses a single field.
  * Return `undefined` otherwise.

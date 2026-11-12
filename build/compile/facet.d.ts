@@ -8,7 +8,7 @@ import { EncodingFacetMapping, FacetFieldDef } from '../spec/facet.js';
 import { VgData, VgLayout, VgMarkGroup } from '../vega.schema.js';
 import { Model, ModelWithField } from './model.js';
 export declare function facetSortFieldName(fieldDef: FacetFieldDef<string>, sort: EncodingSortField<string>, opt?: FieldRefOption): string;
-export declare class FacetModel extends ModelWithField {
+export declare class FacetModel extends ModelWithField<EncodingFacetMapping<string, SignalRef>> {
     readonly facet: EncodingFacetMapping<string, SignalRef>;
     readonly child: Model;
     readonly children: Model[];

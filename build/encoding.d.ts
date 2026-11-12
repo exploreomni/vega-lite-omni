@@ -1,5 +1,5 @@
 import { Channel } from './channel.js';
-import { ChannelDef, ColorDef, Field, FieldDef, FieldDefWithoutScale, LabelDef, LatLongDef, NumericArrayMarkPropDef, NumericMarkPropDef, OffsetDef, OrderFieldDef, OrderOnlyDef, OrderValueDef, PolarDef, Position2Def, PositionDef, ShapeDef, StringFieldDef, StringFieldDefWithCondition, StringValueDefWithCondition, TextDef, TimeDef, TypedFieldDef } from './channeldef.js';
+import { ChannelDef, ColorDef, Field, FieldDef, FieldDefWithoutScale, LabelDef, LatLongDef, NumericArrayMarkPropDef, NumericMarkPropDef, OffsetDef, OrderFieldDef, OrderOnlyDef, OrderValueDef, PolarDef, Position2Def, PositionDef, ShapeDef, StringFieldDefWithCondition, StringValueDefWithCondition, TextDef, TimeDef, TooltipFieldDef } from './channeldef.js';
 import { Config } from './config.js';
 import { Mark } from './mark.js';
 import { EncodingFacetMapping } from './spec/facet.js';
@@ -179,7 +179,7 @@ export interface Encoding<F extends Field> {
      *
      * See the [`tooltip`](https://vega.github.io/vega-lite/docs/tooltip.html) documentation for a detailed discussion about tooltip in Vega-Lite.
      */
-    tooltip?: StringFieldDefWithCondition<F> | StringValueDefWithCondition<F> | StringFieldDef<F>[] | null;
+    tooltip?: StringFieldDefWithCondition<F> | StringValueDefWithCondition<F> | TooltipFieldDef<F>[] | null;
     /**
      * A URL to load upon mouse click.
      */
@@ -207,6 +207,10 @@ export interface EncodingWithFacet<F extends Field> extends Encoding<F>, Encodin
 export declare function channelHasField<F extends Field>(encoding: EncodingWithFacet<F>, channel: keyof EncodingWithFacet<F>): boolean;
 export declare function channelHasFieldOrDatum<F extends Field>(encoding: EncodingWithFacet<F>, channel: keyof EncodingWithFacet<F>): boolean;
 export declare function channelHasNestedOffsetScale<F extends Field>(encoding: EncodingWithFacet<F>, channel: keyof EncodingWithFacet<F>): boolean;
+/**
+ * Returns true if the given position channel has a quantitative offset channel (e.g., `xOffset` for `x`) that can drive ranged marks.
+ */
+export declare function channelHasQuantitativeOffset<F extends Field>(encoding: EncodingWithFacet<F>, channel: Channel): boolean;
 export declare function isAggregate(encoding: EncodingWithFacet<any>): boolean;
 export declare function extractTransformsFromEncoding(oldEncoding: Encoding<any>, config: Config): {
     bins: BinTransform[];
@@ -223,7 +227,7 @@ export declare function initEncoding(encoding: Encoding<string>, mark: Mark, fil
 export declare function normalizeEncoding(encoding: Encoding<string>, config: Config): Encoding<string>;
 export declare function fieldDefs<F extends Field>(encoding: EncodingWithFacet<F>): FieldDef<F>[];
 export declare function forEach<U extends Record<any, any>>(mapping: U, f: (cd: ChannelDef, c: keyof U) => void, thisArg?: any): void;
-export declare function reduce<T, U extends Record<any, any>>(mapping: U, f: (acc: any, fd: TypedFieldDef<string>, c: keyof U) => U, init: T, thisArg?: any): any;
+export declare function reduce<T, U extends Record<any, any>>(mapping: U, f: (acc: T, cd: ChannelDef, c: keyof U) => T, init: T, thisArg?: any): T;
 /**
  * Returns list of path grouping fields for the given encoding
  */

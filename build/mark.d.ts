@@ -41,7 +41,15 @@ export declare function isMark(m: string): m is Mark;
 export declare const PATH_MARKS: readonly ["line", "area", "trail"];
 export type PathMark = (typeof PATH_MARKS)[number];
 export declare function isPathMark(m: Mark | CompositeMark): m is PathMark;
-export declare function isRectBasedMark(m: Mark | CompositeMark): m is 'rect' | 'bar' | 'image' | 'arc' | 'tick';
+export declare const RECT_BASED_MARKS: readonly ["rect", "bar", "image", "arc", "tick"];
+export type RectBasedMark = (typeof RECT_BASED_MARKS)[number];
+export declare function isRectBasedMark(m: Mark | CompositeMark): m is RectBasedMark;
+/**
+ * Marks that span from a baseline to a value (e.g., for zero baselines and stacking).
+ */
+export declare const BAR_AREA_MARKS: readonly ["bar", "area"];
+export type BarAreaMark = (typeof BAR_AREA_MARKS)[number];
+export declare function isBarOrArea(m: Mark | CompositeMark): m is BarAreaMark;
 export declare const PRIMITIVE_MARKS: Set<"text" | "arc" | "area" | "image" | "line" | "rect" | "rule" | "trail" | "bar" | "point" | "tick" | "circle" | "square" | "geoshape">;
 export interface ColorMixins<ES extends ExprRef | SignalRef> {
     /**
@@ -316,12 +324,9 @@ export interface RelativeBandSize {
     band: number;
 }
 export declare function isRelativeBandSize(o: number | RelativeBandSize | ExprRef | SignalRef): o is RelativeBandSize;
-export declare const BAR_CORNER_RADIUS_INDEX: Partial<Record<Orientation, ('cornerRadiusTopLeft' | 'cornerRadiusTopRight' | 'cornerRadiusBottomLeft' | 'cornerRadiusBottomRight')[]>>;
 export interface BarCornerRadiusMixins<ES extends ExprRef | SignalRef> {
     /**
-     * - For vertical bars, top-left and top-right corner radius.
-     *
-     * - For horizontal bars, top-right and bottom-right corner radius.
+     * Corner radius of the value-end side.
      */
     cornerRadiusEnd?: number | ES;
 }

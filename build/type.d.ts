@@ -10,7 +10,20 @@ export declare const Type: {
 };
 export type Type = keyof typeof Type;
 export declare function isType(t: any): t is Type;
+/**
+ * Type-only continuous check (does not consider binning).
+ * A binned quantitative field still counts as continuous here, whereas the
+ * field-aware `isDiscrete` in `./channeldef.js` treats it as discrete.
+ */
 export declare function isContinuous(type: Type): type is 'quantitative' | 'temporal';
+/**
+ * Type-only discrete check (does not consider binning).
+ * For a field-aware version that treats binned quantitative fields as discrete,
+ * use `isDiscrete` from `./channeldef.js`.
+ * Note: `tooltipRefForEncoding` relies on this type-only check so that binned
+ * quantitative fields keep the bin-range tooltip format instead of the
+ * discrete format.
+ */
 export declare function isDiscrete(type: Type): type is 'ordinal' | 'nominal';
 export declare const QUANTITATIVE: "quantitative";
 export declare const ORDINAL: "ordinal";

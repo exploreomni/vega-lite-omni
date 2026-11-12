@@ -7,6 +7,12 @@ import { ParameterName } from './parameter.js';
 import { TimeUnit, TimeUnitParams, BinnedTimeUnit } from './timeunit.js';
 export type Predicate = FieldEqualPredicate | FieldRangePredicate | FieldOneOfPredicate | FieldLTPredicate | FieldGTPredicate | FieldLTEPredicate | FieldGTEPredicate | FieldValidPredicate | ParameterPredicate | string;
 export type FieldPredicate = FieldEqualPredicate | FieldLTPredicate | FieldGTPredicate | FieldLTEPredicate | FieldGTEPredicate | FieldRangePredicate | FieldOneOfPredicate | FieldValidPredicate;
+/**
+ * A field predicate without `field` and `timeUnit`, which are implied by the tooltip field definition that the filter is defined on and must not be specified.
+ */
+type TooltipPredicate<P extends FieldPredicate> = Omit<P, 'field' | 'timeUnit'>;
+export type TooltipFieldPredicate = TooltipPredicate<FieldEqualPredicate> | TooltipPredicate<FieldLTPredicate> | TooltipPredicate<FieldGTPredicate> | TooltipPredicate<FieldLTEPredicate> | TooltipPredicate<FieldGTEPredicate> | TooltipPredicate<FieldRangePredicate> | TooltipPredicate<FieldOneOfPredicate> | TooltipPredicate<FieldValidPredicate>;
+export type TooltipFieldFilter = LogicalComposition<TooltipFieldPredicate>;
 export interface ParameterPredicate {
     /**
      * Filter using a parameter name.
@@ -91,7 +97,8 @@ export declare function isFieldOneOfPredicate(predicate: any): predicate is Fiel
 export declare function isFieldValidPredicate(predicate: any): predicate is FieldValidPredicate;
 export declare function isFieldPredicate(predicate: Predicate): predicate is FieldOneOfPredicate | FieldEqualPredicate | FieldRangePredicate | FieldLTPredicate | FieldGTPredicate | FieldLTEPredicate | FieldGTEPredicate;
 export declare function fieldIndexOfExpression(predicate: FieldPredicateBase, values: (number | string | boolean | DateTime)[]): string;
-export declare function fieldFilterExpression(predicate: FieldPredicate, useInRange?: boolean): string;
+export declare function fieldFilterExpression(predicate: FieldPredicate, useInRange?: boolean, expr?: 'datum' | 'datum.datum'): string;
 export declare function fieldValidPredicate(fieldExpr: string, valid?: boolean): string;
 export declare function normalizePredicate(f: Predicate): Predicate;
+export {};
 //# sourceMappingURL=predicate.d.ts.map

@@ -32,6 +32,7 @@ export declare const axisRules: {
  * If `grid` is unspecified, the default value is `true` for ordinal scales that are not binned
  */
 export declare function defaultGrid(scaleType: ScaleType, fieldDef: TypedFieldDef<string> | DatumDef): boolean;
+export declare function defaultBandPosition(model: UnitModel, channel: PositionScaleChannel): 0 | 1;
 export declare function gridScale(model: UnitModel, channel: PositionScaleChannel): string;
 export declare function getLabelAngle(fieldOrDatumDef: PositionFieldDef<string> | PositionDatumDef<string>, axis: AxisInternal, channel: PositionScaleChannel, styleConfig: StyleConfigIndex<SignalRef>, axisConfigs?: AxisConfigs): number | SignalRef;
 export declare function normalizeAngleExpr(angle: SignalRef): string;

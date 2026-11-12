@@ -34,7 +34,7 @@ export declare function getMarkConfig<P extends keyof MarkDef, ES extends ExprRe
     vgChannel?: VgEncodeChannel;
 }): MarkDef<Mark, ES>[P];
 export declare function getMarkStyleConfig<P extends keyof MarkDef, ES extends ExprRef | SignalRef>(prop: P, mark: MarkDef<Mark, ES>, styleConfigIndex: StyleConfigIndex<SignalRef>): string | boolean | SignalRef;
-export declare function getStyleConfig<P extends keyof MarkDef | keyof AxisConfig<SignalRef>>(p: P, styles: string | string[], styleConfigIndex: StyleConfigIndex<SignalRef>): string | boolean | SignalRef;
+export declare function getStyleConfig<P extends keyof MarkDef | keyof AxisConfig<SignalRef>>(p: P, styles: string | readonly string[], styleConfigIndex: StyleConfigIndex<SignalRef>): string | boolean | SignalRef;
 /**
  * Return Vega sort parameters (tuple of field and order).
  */
