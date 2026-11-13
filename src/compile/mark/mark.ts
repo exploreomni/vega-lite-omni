@@ -408,7 +408,7 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
 
   const {label: _label, ...originalEncoding} = model.originalEncoding;
   const {label} = model.encoding;
-  const {position, avoid, mark: labelMark, method, lineAnchor, padding, inherit, ...textEncoding} = label;
+  const {position, avoid, mark: labelMark, method, lineAnchor, padding, overlap, inherit, ...textEncoding} = label;
 
   const anchor = position?.map((p) => p.anchor);
   const offset = position?.map((p) => p.offset);
@@ -417,6 +417,8 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
     type: 'label',
     size: {signal: '[width, height]'},
     ...(padding === undefined ? {} : {padding}),
+    // A param of the omni vega fork's label transform; upstream vega ignores it.
+    ...(overlap ? {overlap} : {}),
   };
 
   let labelTransform: LabelTransform;

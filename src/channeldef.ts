@@ -332,6 +332,15 @@ export type LabelDefMixins = {
   padding?: number | null;
 
   /**
+   * Whether to place every label, whatever it overlaps.
+   * Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first.
+   * This property does not apply to stacked area marks.
+   *
+   * __Default value:__ `false`
+   */
+  overlap?: boolean;
+
+  /**
    * The labeling method to use for stacked area marks. One of:
    *
    * - `"reduced-search"`: For each area, the label is placed at the center of the largest rectangle that can fit into the area.

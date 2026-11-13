@@ -34,6 +34,7 @@ Labels can provide details of a particular data point as a text annotation direc
       avoid: ...,
       mark: ...,
       padding: ...,
+      overlap: ...,
       method: ...,
       lineAnchor: ...,
     }
@@ -43,7 +44,7 @@ Labels can provide details of a particular data point as a text annotation direc
 
 ## Properties
 
-{% include table-anyof.html props="position,avoid,mark,padding,method,lineAnchor" source="LabelDef" index=0 %}
+{% include table-anyof.html props="position,avoid,mark,padding,overlap,method,lineAnchor" source="LabelDef" index=0 %}
 
 ## Examples
 

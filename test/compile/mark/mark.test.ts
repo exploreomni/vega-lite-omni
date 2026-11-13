@@ -959,6 +959,27 @@ describe('Mark', () => {
           offset: [0],
         });
       });
+
+      it('should pass overlap to the label transform and keep it out of the text encoding', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'point',
+          encoding: {
+            label: {type: 'nominal', field: 'col', overlap: true, position: [{anchor: 'top', offset: 4}]},
+          },
+        });
+
+        const label = getLabelMark(model, 'anything');
+        expect(label.transform[0]).toStrictEqual({
+          type: 'label',
+          size: {signal: '[width, height]'},
+          overlap: true,
+          anchor: ['top'],
+          offset: [4],
+        });
+        expect(label.encode.update.text).toStrictEqual({
+          signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]',
+        });
+      });
     });
   });
 
