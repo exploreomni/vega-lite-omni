@@ -186,6 +186,22 @@ export type LabelDefMixins = {
      */
     padding?: number | null;
     /**
+     * Whether to place every label, whatever it overlaps.
+     * Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first.
+     * This property does not apply to stacked area marks.
+     *
+     * __Default value:__ `false`
+     */
+    overlap?: boolean;
+    /**
+     * Whether to mirror the label positions of bars with a negative value, so that a position past the end of a positive bar is past the end of a negative one too.
+     * Without it positions are relative to the bar's bounding box: `"top"` is past the end of a positive vertical bar and at the base of a negative one.
+     * This property only applies to bar marks.
+     *
+     * __Default value:__ `false`
+     */
+    mirrorNegative?: boolean;
+    /**
      * The labeling method to use for stacked area marks. One of:
      *
      * - `"reduced-search"`: For each area, the label is placed at the center of the largest rectangle that can fit into the area.
@@ -563,8 +579,8 @@ export declare function toStringFieldDef<F extends Field>(fieldDef: FieldDef<F>)
 export interface FieldRefOption {
     /** Exclude bin, aggregate, timeUnit */
     nofn?: boolean;
-    /** Wrap the field with datum, parent, or datum.datum (e.g., datum['...'] for Vega Expression */
-    expr?: 'datum' | 'parent' | 'datum.datum';
+    /** Wrap the field with datum, parent, datum.datum, or datum.datum.datum (e.g., datum['...'] for Vega Expression */
+    expr?: 'datum' | 'parent' | 'datum.datum' | 'datum.datum.datum';
     /** Prepend fn with custom function prefix */
     prefix?: string;
     /** Append suffix to the field ref for bin (default='start') */
