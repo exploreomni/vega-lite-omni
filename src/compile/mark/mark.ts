@@ -408,7 +408,18 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
 
   const {label: _label, ...originalEncoding} = model.originalEncoding;
   const {label} = model.encoding;
-  const {position, avoid, mark: labelMark, method, lineAnchor, padding, overlap, inherit, ...textEncoding} = label;
+  const {
+    position,
+    avoid,
+    mark: labelMark,
+    method,
+    lineAnchor,
+    padding,
+    overlap,
+    mirrorNegative,
+    inherit,
+    ...textEncoding
+  } = label;
 
   const anchor = position?.map((p) => p.anchor);
   const offset = position?.map((p) => p.offset);
@@ -417,9 +428,12 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
     type: 'label',
     size: {signal: '[width, height]'},
     ...(padding === undefined ? {} : {padding}),
-    // A param of the omni vega fork's label transform; upstream vega ignores it.
+    // `overlap` and `mirror` are params of the omni vega fork's label transform; upstream vega ignores them.
     ...(overlap ? {overlap} : {}),
   };
+
+  // The label transform's tuples are text items; the data row sits behind the base mark item.
+  const measure = model.vgField(orient === 'horizontal' ? 'x' : 'y', {expr: 'datum.datum.datum'});
 
   let labelTransform: LabelTransform;
   switch (mark) {
@@ -437,6 +451,7 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
                 anchor: orient === 'horizontal' ? ['right', 'right'] : ['top', 'top'],
                 offset: [2, -2],
               }),
+        ...(mirrorNegative && measure ? {mirror: `${measure} < 0`} : {}),
       };
       break;
     case 'line':
