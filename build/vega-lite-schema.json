@@ -12887,6 +12887,10 @@
                   "type": "string"
                 },
                 {
+                  "const": "none",
+                  "type": "string"
+                },
+                {
                   "additionalProperties": false,
                   "properties": {
                     "ancestor": {
@@ -12900,7 +12904,7 @@
                   "type": "object"
                 }
               ],
-              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
+              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"none\"`: Avoid no marks, not even the one that encodes this label. Labels still avoid each other.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
             },
             "bandPosition": {
               "description": "Relative position on a band of a stacked, binned, time unit, or band scale. For example, the marks will be positioned at the beginning of the band if set to `0`, and at the middle of the band if set to `0.5`.",
@@ -14037,6 +14041,10 @@
                   "type": "string"
                 },
                 {
+                  "const": "none",
+                  "type": "string"
+                },
+                {
                   "additionalProperties": false,
                   "properties": {
                     "ancestor": {
@@ -14050,7 +14058,7 @@
                   "type": "object"
                 }
               ],
-              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
+              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"none\"`: Avoid no marks, not even the one that encodes this label. Labels still avoid each other.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
             },
             "bandPosition": {
               "description": "Relative position on a band of a stacked, binned, time unit, or band scale. For example, the marks will be positioned at the beginning of the band if set to `0`, and at the middle of the band if set to `0.5`.",
@@ -15164,6 +15172,10 @@
                   "type": "string"
                 },
                 {
+                  "const": "none",
+                  "type": "string"
+                },
+                {
                   "additionalProperties": false,
                   "properties": {
                     "ancestor": {
@@ -15177,7 +15189,7 @@
                   "type": "object"
                 }
               ],
-              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
+              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"none\"`: Avoid no marks, not even the one that encodes this label. Labels still avoid each other.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
             },
             "condition": {
               "anyOf": [
@@ -28489,6 +28501,10 @@
                   "type": "string"
                 },
                 {
+                  "const": "none",
+                  "type": "string"
+                },
+                {
                   "additionalProperties": false,
                   "properties": {
                     "ancestor": {
@@ -28502,7 +28518,7 @@
                   "type": "object"
                 }
               ],
-              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
+              "description": "Indicates the mark or group of marks that each label will avoid.\n- `\"base-mark\"`: Avoid only the mark that encodes this label.\n- `\"none\"`: Avoid no marks, not even the one that encodes this label. Labels still avoid each other.\n- `\"all-marks\"`: Avoid all the marks that are children of the root layer.\n- `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `\"base-mark\"`.\n\n__Default value:__ `\"base-mark\"`"
             },
             "bandPosition": {
               "description": "Relative position on a band of a stacked, binned, time unit, or band scale. For example, the marks will be positioned at the beginning of the band if set to `0`, and at the middle of the band if set to `0.5`.",

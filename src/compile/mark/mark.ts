@@ -428,6 +428,7 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
     type: 'label',
     size: {signal: '[width, height]'},
     ...(padding === undefined ? {} : {padding}),
+    ...(avoid === 'none' ? {avoidBaseMark: false} : {}),
     // `overlap` and `mirror` are params of the omni vega fork's label transform; upstream vega ignores them.
     ...(overlap ? {overlap} : {}),
   };

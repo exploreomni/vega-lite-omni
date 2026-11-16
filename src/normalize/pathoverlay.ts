@@ -84,6 +84,9 @@ function getLineOverlay(
 }
 
 function incrementAvoidLevel(labelDef: LabelDef<string>): LabelDef<string> {
+  if (labelDef.avoid === 'none') {
+    return labelDef;
+  }
   const ancestorLevel = getAncestorLevel(labelDef.avoid);
   return {...labelDef, avoid: {ancestor: ancestorLevel + 1}};
 }

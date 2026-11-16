@@ -242,10 +242,10 @@ type AncestorLevel = {
   ancestor: number;
 };
 
-type LabelAvoid = 'all-marks' | 'base-mark' | AncestorLevel;
+type LabelAvoid = 'all-marks' | 'base-mark' | 'none' | AncestorLevel;
 
 export function getAncestorLevel(avoid: LabelAvoid): number {
-  if (!avoid || avoid === 'base-mark') {
+  if (!avoid || avoid === 'base-mark' || avoid === 'none') {
     return 0;
   } else if (avoid === 'all-marks') {
     return Infinity;
@@ -309,6 +309,7 @@ export type LabelDefMixins = {
   /**
    * Indicates the mark or group of marks that each label will avoid.
    * - `"base-mark"`: Avoid only the mark that encodes this label.
+   * - `"none"`: Avoid no marks, not even the one that encodes this label. Labels still avoid each other.
    * - `"all-marks"`: Avoid all the marks that are children of the root layer.
    * - `{ancestor: number}`: Avoid all the marks that are children of the `ancestor`th ancestor layer. `{ancestor: 0}` is the same as `"base-mark"`.
    *

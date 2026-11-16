@@ -978,6 +978,34 @@ describe('Mark', () => {
         expect(label.encode.update.text).toStrictEqual({signal: 'format(datum.datum["sum_col2"], "")'});
       });
 
+      it('should have the label transform avoid no marks when avoid is none', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            label: {type: 'quantitative', field: 'col2', avoid: 'none'},
+          },
+        });
+
+        const [transform] = getLabelMark(model, 'anything').transform;
+        expect(transform).toMatchObject({avoidBaseMark: false});
+        expect(transform).not.toHaveProperty('avoidMarks');
+      });
+
+      it('should have the label transform avoid its base mark by default', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            label: {type: 'quantitative', field: 'col2'},
+          },
+        });
+
+        expect(getLabelMark(model, 'anything').transform[0]).not.toHaveProperty('avoidBaseMark');
+      });
+
       it('should not mirror the anchors of a mark that is not a bar', () => {
         const model = parseUnitModelWithScale({
           mark: 'point',
