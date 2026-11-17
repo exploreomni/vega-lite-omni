@@ -335,7 +335,7 @@ export type LabelDefMixins = {
   /**
    * Whether to place every label, whatever it overlaps.
    * Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first.
-   * This property does not apply to stacked area marks.
+   * This property does not apply to multi-series area marks.
    *
    * __Default value:__ `false`
    */

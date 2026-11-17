@@ -13974,7 +13974,7 @@
               "type": "boolean"
             },
             "overlap": {
-              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to stacked area marks.\n\n__Default value:__ `false`",
+              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to multi-series area marks.\n\n__Default value:__ `false`",
               "type": "boolean"
             },
             "padding": {
@@ -15123,7 +15123,7 @@
               "type": "boolean"
             },
             "overlap": {
-              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to stacked area marks.\n\n__Default value:__ `false`",
+              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to multi-series area marks.\n\n__Default value:__ `false`",
               "type": "boolean"
             },
             "padding": {
@@ -16226,7 +16226,7 @@
               "type": "boolean"
             },
             "overlap": {
-              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to stacked area marks.\n\n__Default value:__ `false`",
+              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to multi-series area marks.\n\n__Default value:__ `false`",
               "type": "boolean"
             },
             "padding": {
@@ -29627,7 +29627,7 @@
               "type": "boolean"
             },
             "overlap": {
-              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to stacked area marks.\n\n__Default value:__ `false`",
+              "description": "Whether to place every label, whatever it overlaps. Positions are then tried only to keep a label inside the chart bounding box, and a label that fits at none takes the first. This property does not apply to multi-series area marks.\n\n__Default value:__ `false`",
               "type": "boolean"
             },
             "padding": {
