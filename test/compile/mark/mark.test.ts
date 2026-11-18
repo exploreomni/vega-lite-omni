@@ -959,6 +959,112 @@ describe('Mark', () => {
           offset: [0],
         });
       });
+
+      it.each([
+        {orient: 'vertical', measure: 'y', dimension: 'x'},
+        {orient: 'horizontal', measure: 'x', dimension: 'y'},
+      ] as const)('should mirror the anchors of negative $orient bars', ({measure, dimension}) => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            [dimension]: {type: 'nominal', field: 'col1'},
+            [measure]: {type: 'quantitative', field: 'col2', aggregate: 'sum'},
+            label: {type: 'quantitative', field: 'col2', aggregate: 'sum', mirrorNegative: true},
+          },
+        });
+
+        const label = getLabelMark(model, 'anything');
+        expect(label.transform[0]).toMatchObject({mirror: 'datum.datum.datum["sum_col2"] < 0'});
+        expect(label.encode.update.text).toStrictEqual({signal: 'format(datum.datum["sum_col2"], "")'});
+      });
+
+      it('should have the label transform avoid no marks when avoid is none', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            label: {type: 'quantitative', field: 'col2', avoid: 'none'},
+          },
+        });
+
+        const [transform] = getLabelMark(model, 'anything').transform;
+        expect(transform).toMatchObject({avoidBaseMark: false});
+        expect(transform).not.toHaveProperty('avoidMarks');
+      });
+
+      it('should have the label transform avoid its base mark by default', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            label: {type: 'quantitative', field: 'col2'},
+          },
+        });
+
+        expect(getLabelMark(model, 'anything').transform[0]).not.toHaveProperty('avoidBaseMark');
+      });
+
+      it('should not mirror the anchors of a mark that is not a bar', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'point',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            label: {type: 'quantitative', field: 'col2', mirrorNegative: true},
+          },
+        });
+
+        expect(getLabelMark(model, 'anything').transform[0]).not.toHaveProperty('mirror');
+      });
+
+      it.each([
+        {name: 'the middle of a stacked bar', position: undefined, anchor: ['middle'], offset: [0]},
+        {name: 'a position on a stacked bar', position: [{anchor: 'top', offset: 4}], anchor: ['top'], offset: [4]},
+      ] as const)('should mirror $name where the bar is negative', ({position, anchor, offset}) => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            color: {type: 'nominal', field: 'col3'},
+            label: {
+              type: 'quantitative',
+              field: 'col2',
+              mirrorNegative: true,
+              ...(position && {position: [...position]}),
+            },
+          },
+        });
+
+        expect(getLabelMark(model, 'anything').transform[0]).toMatchObject({
+          anchor,
+          offset,
+          mirror: 'datum.datum.datum["col2"] < 0',
+        });
+      });
+
+      it('should pass overlap to the label transform and keep it out of the text encoding', () => {
+        const model = parseUnitModelWithScale({
+          mark: 'point',
+          encoding: {
+            label: {type: 'nominal', field: 'col', overlap: true, position: [{anchor: 'top', offset: 4}]},
+          },
+        });
+
+        const label = getLabelMark(model, 'anything');
+        expect(label.transform[0]).toStrictEqual({
+          type: 'label',
+          size: {signal: '[width, height]'},
+          overlap: true,
+          anchor: ['top'],
+          offset: [4],
+        });
+        expect(label.encode.update.text).toStrictEqual({
+          signal: 'isValid(datum.datum["col"]) ? datum.datum["col"] : ""+datum.datum["col"]',
+        });
+      });
     });
   });
 

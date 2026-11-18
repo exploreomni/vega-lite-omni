@@ -1,6 +1,6 @@
 import {normalize} from '../../src/normalize/index.js';
 import {PathOverlayNormalizer} from '../../src/normalize/pathoverlay.js';
-import {TopLevelSpec} from '../../src/spec/index.js';
+import {NormalizedLayerSpec, TopLevelSpec} from '../../src/spec/index.js';
 import {DataMixins} from '../../src/spec/base.js';
 import {TopLevel} from '../../src/spec/toplevel.js';
 import {NormalizedUnitSpec} from '../../src/spec/unit.js';
@@ -634,6 +634,24 @@ describe('PathOverlayNormalizer', () => {
         },
       ],
     });
+  });
+
+  it.each([
+    {type: 'area', line: true},
+    {type: 'line', point: true},
+  ] as const)('correctly normalizes $type with overlay and a label that avoids no marks', (mark) => {
+    const label = {field: 'price', type: 'quantitative', avoid: 'none'} as const;
+    const {layer} = normalize({
+      data: {url: 'data/stocks.csv'},
+      mark,
+      encoding: {
+        x: {field: 'date', type: 'temporal'},
+        y: {field: 'price', type: 'quantitative'},
+        label,
+      },
+    }) as NormalizedLayerSpec;
+
+    expect((layer.at(-1) as NormalizedUnitSpec).encoding.label).toEqual(label);
   });
 
   it('correctly normalizes area with label and without overlay line', () => {

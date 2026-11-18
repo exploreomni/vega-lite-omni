@@ -1,6 +1,6 @@
 import {LayerModel} from '../../src/compile/layer.js';
 import {UnitModel} from '../../src/compile/unit.js';
-import {parseLayerModel} from '../util.js';
+import {parseLayerModel, parseModel} from '../util.js';
 
 describe('Layer', () => {
   describe('parseScale', () => {
@@ -277,6 +277,25 @@ describe('Layer', () => {
           ],
         },
       ]);
+    });
+  });
+
+  describe("label's avoidMarks on a path overlay", () => {
+    it('should avoid neither the path nor its overlay when avoid is none', () => {
+      const model = parseModel({
+        data: {url: 'data/stocks.csv'},
+        mark: {type: 'line', point: true},
+        encoding: {
+          x: {field: 'date', type: 'temporal'},
+          y: {field: 'price', type: 'quantitative'},
+          label: {field: 'price', type: 'quantitative', avoid: 'none'},
+        },
+      });
+      model.parse();
+
+      const [transform] = (model.children[1] as UnitModel).labelMark.transform;
+      expect(transform).toMatchObject({avoidBaseMark: false});
+      expect(transform).not.toHaveProperty('avoidMarks');
     });
   });
 });
