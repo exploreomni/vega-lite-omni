@@ -1019,6 +1019,32 @@ describe('Mark', () => {
         expect(getLabelMark(model, 'anything').transform[0]).not.toHaveProperty('mirror');
       });
 
+      it.each([
+        {name: 'the middle of a stacked bar', position: undefined, anchor: ['middle'], offset: [0]},
+        {name: 'a position on a stacked bar', position: [{anchor: 'top', offset: 4}], anchor: ['top'], offset: [4]},
+      ] as const)('should mirror $name where the bar is negative', ({position, anchor, offset}) => {
+        const model = parseUnitModelWithScale({
+          mark: 'bar',
+          encoding: {
+            x: {type: 'nominal', field: 'col1'},
+            y: {type: 'quantitative', field: 'col2'},
+            color: {type: 'nominal', field: 'col3'},
+            label: {
+              type: 'quantitative',
+              field: 'col2',
+              mirrorNegative: true,
+              ...(position && {position: [...position]}),
+            },
+          },
+        });
+
+        expect(getLabelMark(model, 'anything').transform[0]).toMatchObject({
+          anchor,
+          offset,
+          mirror: 'datum.datum.datum["col2"] < 0',
+        });
+      });
+
       it('should pass overlap to the label transform and keep it out of the text encoding', () => {
         const model = parseUnitModelWithScale({
           mark: 'point',
