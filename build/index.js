@@ -3424,7 +3424,7 @@ function isConditionalParameter(c) {
     return hasProperty(c, 'param');
 }
 function getAncestorLevel(avoid) {
-    if (!avoid || avoid === 'base-mark') {
+    if (!avoid || avoid === 'base-mark' || avoid === 'none') {
         return 0;
     }
     else if (avoid === 'all-marks') {
@@ -6969,6 +6969,9 @@ function getLineOverlay(markDef, markConfig = {}) {
     }
 }
 function incrementAvoidLevel(labelDef) {
+    if (labelDef.avoid === 'none') {
+        return labelDef;
+    }
     const ancestorLevel = getAncestorLevel(labelDef.avoid);
     return { ...labelDef, avoid: { ancestor: ancestorLevel + 1 } };
 }
@@ -20771,20 +20774,25 @@ function getLabelMark(model, data) {
     }
     const { label: _label, ...originalEncoding } = model.originalEncoding;
     const { label } = model.encoding;
-    const { position, avoid, mark: labelMark, method, lineAnchor, padding, inherit, ...textEncoding } = label;
+    const { position, avoid, mark: labelMark, method, lineAnchor, padding, overlap, mirrorNegative, inherit, ...textEncoding } = label;
     const anchor = position?.map((p) => p.anchor);
     const offset = position?.map((p) => p.offset);
     const common = {
         type: 'label',
         size: { signal: '[width, height]' },
         ...(padding === undefined ? {} : { padding }),
+        ...(avoid === 'none' ? { avoidBaseMark: false } : {}),
+        // `overlap` and `mirror` are params of the omni vega fork's label transform; upstream vega ignores them.
+        ...(overlap ? { overlap } : {}),
     };
     let labelTransform;
     switch (mark) {
         case 'area':
             labelTransform = { ...common, method: method ?? 'reduced-search' };
             break;
-        case 'bar':
+        case 'bar': {
+            // The label transform's tuples are text items; the data row sits behind the base mark item.
+            const measure = model.vgField(orient === 'horizontal' ? 'x' : 'y', { expr: 'datum.datum.datum' });
             labelTransform = {
                 ...common,
                 ...(position
@@ -20795,8 +20803,10 @@ function getLabelMark(model, data) {
                             anchor: orient === 'horizontal' ? ['right', 'right'] : ['top', 'top'],
                             offset: [2, -2],
                         }),
+                ...(mirrorNegative && measure ? { mirror: `${measure} < 0` } : {}),
             };
             break;
+        }
         case 'line':
         case 'trail': {
             const _lineAnchor = lineAnchor ?? 'end';
