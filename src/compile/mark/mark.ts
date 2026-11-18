@@ -433,15 +433,14 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
     ...(overlap ? {overlap} : {}),
   };
 
-  // The label transform's tuples are text items; the data row sits behind the base mark item.
-  const measure = model.vgField(orient === 'horizontal' ? 'x' : 'y', {expr: 'datum.datum.datum'});
-
   let labelTransform: LabelTransform;
   switch (mark) {
     case 'area':
       labelTransform = {...common, method: method ?? 'reduced-search'};
       break;
-    case 'bar':
+    case 'bar': {
+      // The label transform's tuples are text items; the data row sits behind the base mark item.
+      const measure = model.vgField(orient === 'horizontal' ? 'x' : 'y', {expr: 'datum.datum.datum'});
       labelTransform = {
         ...common,
         ...(position
@@ -455,6 +454,7 @@ export function getLabelMark(model: UnitModel, data: string): LabelMark {
         ...(mirrorNegative && measure ? {mirror: `${measure} < 0`} : {}),
       };
       break;
+    }
     case 'line':
     case 'trail': {
       const _lineAnchor = lineAnchor ?? 'end';
